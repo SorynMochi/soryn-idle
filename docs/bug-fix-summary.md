@@ -102,6 +102,19 @@ This update continues from the previous PR and addresses the remaining unresolve
 - **Exact change made:** Added README architecture note explicitly marking `src/main.js` as active and top-level `app.js` + `game/` as legacy/migration references.
 - **How to verify now:** Read README architecture notes and confirm entrypoint guidance is explicit.
 
+
+## UI navigation state consistency
+
+### 8) Tab selection immediately reverted to Combat
+- **How reproduced:** During live runtime with the game loop active, clicked any non-combat tab (for example `Party`) and observed the panel switch for one render, then snap back to `Combat` on the next tick.
+- **Root cause:** Tab clicks used `store.update` with immutable replacement, creating a brand-new root state object. The game loop still referenced the original object captured during bootstrap, so each loop render continued to read the stale `ui.activeTab` (`combat`) and overwrote the visible tab selection.
+- **Related issue discovered:** Any event path relying on the replaced store state could diverge from systems still mutating the original game-loop state object, creating split-brain UI/runtime behavior.
+- **Exact change made:** Updated tab click handling in `src/main.js` to mutate `state.ui.activeTab` on the existing shared state object (`store.getState()`), preserving reference identity with the game loop.
+- **How to verify now:**
+  1. Start the game and wait for active combat ticks.
+  2. Click `Overview`, `Party`, `Recruit`, `Passive`, `Quests`, `Inventory`, and `Crafting`.
+  3. Confirm each tab remains selected without being forced back to `Combat` on subsequent loop renders.
+
 ## Still remaining
 
 - No additional unresolved bugs from the April 20, 2026 audit remain open after this pass.

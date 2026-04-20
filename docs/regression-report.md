@@ -103,3 +103,21 @@ No regressions or clear correctness issues were identified in this pass.
 
 ## Conclusion
 No code fixes were required from this regression check. Only this report was updated to document what was validated and the outcomes.
+
+---
+
+## Addendum — 2026-04-20 (Tab reversion hotfix)
+
+### Issue observed
+- With the live game loop running, selecting non-combat tabs could be reverted by the next render tick, forcing navigation back to `Combat`.
+
+### Root cause summary
+- Tab-change logic replaced the root store state object, while the game loop retained the original state reference captured at bootstrap.
+- Subsequent loop-driven renders used stale `ui.activeTab` from the old object.
+
+### Fix summary
+- Tab changes now mutate `state.ui.activeTab` on the shared game-loop state object rather than replacing the root state reference.
+
+### Verification
+- Re-ran static syntax check and a focused state-reference smoke script that simulates tab changes while the loop-adjacent state reference remains active.
+- Confirmed `ui.activeTab` persists as selected across repeated reads/renders.

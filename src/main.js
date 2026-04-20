@@ -62,15 +62,9 @@ function wireUi(ui, store, gameLoop) {
   ui.tabButtons.forEach((button) => {
     button.addEventListener('click', () => {
       const selected = button.dataset.tab;
-      store.update((state) => ({
-        ...state,
-        ui: {
-          ...state.ui,
-          activeTab: selected
-        }
-      }), 'tab-change');
-
-      render(store.getState(), ui);
+      const state = store.getState();
+      state.ui.activeTab = selected;
+      render(state, ui);
     });
   });
 
