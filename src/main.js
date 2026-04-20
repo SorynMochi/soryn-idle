@@ -1,8 +1,9 @@
 import { GAME_CONFIG } from './config/constants.js';
 import { createInitialState, normalizeState } from './core/gameState.js';
-import { createGameLoop } from './core/gameLoop.js';
-import { createSystemManager } from './core/systemManager.js';
+import { createStore } from './core/store.js';
 import { loadState, saveState } from './persistence/saveRepository.js';
+import { calculateOfflineProgress } from './systems/offlineProgress.js';
+import { render, setStatus } from './ui/render.js';
 import { combatSystem } from './systems/combatSystem.js';
 import { partySystem } from './systems/partySystem.js';
 import { progressionSystem } from './systems/progressionSystem.js';
@@ -12,10 +13,18 @@ import { render, setOfflineSummary, setStatus } from './ui/render.js';
 
 async function bootstrap() {
   const ui = getUiRefs();
-  setStatus(ui, 'Loading save...');
+  setStatus(ui, 'Loading save data...');
 
   const loaded = await loadState();
   const state = normalizeState(loaded ?? createInitialState());
+  const store = createStore(state);
+
+  const offline = calculateOfflineProgress(store.getState());
+  store.update((current) => ({
+    ...current,
+    runtime: {
+      ...current.runtime,
+      lastOfflineDurationMs: offline.durationMs
   const wasStarterAssigned = recruitmentSystem.initializeStarter(state);
 
   const offlineResult = applyOfflineProgress(state);
@@ -46,15 +55,16 @@ async function bootstrap() {
       state.meta.updatedAt = Date.now();
       state.meta.lastActiveAt = Date.now();
     },
-    onRender: (current) => render(current, ui),
-    onAutosave: async (current) => {
-      await saveState(current);
-      setStatus(ui, `Autosaved at ${new Date().toLocaleTimeString()}`);
+    meta: {
+      ...current.meta,
+      updatedAt: Date.now(),
+      lastActiveAt: Date.now()
     }
-  });
+  }), 'offline-ready');
 
-  wireUiHandlers(ui, state, gameLoop);
+  setStatus(ui, offline.summary);
 
+  wireTabs(ui, store);
   if (wasStarterAssigned) {
     setStatus(ui, 'The Vanguard Caelan joins your party. Recruit more allies with Crystal Shards.');
   }
@@ -62,69 +72,84 @@ async function bootstrap() {
   render(state, ui);
   gameLoop.start();
 
-  document.addEventListener('visibilitychange', async () => {
-    if (document.hidden) {
-      state.meta.lastActiveAt = Date.now();
-      await saveState(state);
+  store.subscribe((nextState, reason) => {
+    render(nextState, ui);
+    if (reason === 'tab-change') {
+      setStatus(ui, `Viewing ${nextState.ui.activeTab[0].toUpperCase()}${nextState.ui.activeTab.slice(1)}.`);
     }
+  });
+
+  render(store.getState(), ui);
+
+  startAutosave(store, ui);
+  wireLifecyclePersistence(store);
+}
+
+function startAutosave(store, ui) {
+  setInterval(async () => {
+    const now = Date.now();
+
+    store.update((current) => ({
+      ...current,
+      meta: {
+        ...current.meta,
+        updatedAt: now,
+        lastActiveAt: now
+      },
+      runtime: {
+        ...current.runtime,
+        totalPlayTimeMs: current.runtime.totalPlayTimeMs + GAME_CONFIG.autosaveIntervalMs,
+        autosaveCount: current.runtime.autosaveCount + 1
+      }
+    }), 'autosave-tick');
+
+    await saveState(store.getState());
+    setStatus(ui, `Autosaved at ${new Date(now).toLocaleTimeString()}.`, true);
+  }, GAME_CONFIG.autosaveIntervalMs);
+}
+
+function wireLifecyclePersistence(store) {
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) return;
+
+    store.update((current) => ({
+      ...current,
+      meta: {
+        ...current.meta,
+        lastActiveAt: Date.now(),
+        updatedAt: Date.now()
+      }
+    }), 'hidden-save');
+
+    saveState(store.getState());
   });
 
   window.addEventListener('beforeunload', () => {
-    state.meta.lastActiveAt = Date.now();
-    saveState(state);
+    store.update((current) => ({
+      ...current,
+      meta: {
+        ...current.meta,
+        lastActiveAt: Date.now(),
+        updatedAt: Date.now()
+      }
+    }), 'unload-save');
+
+    saveState(store.getState());
   });
 }
 
-function applyOfflineProgress(state) {
-  const now = Date.now();
-  const last = state.meta.lastActiveAt ?? now;
-  const elapsed = Math.max(0, now - last);
-  const offlineMs = Math.min(elapsed, GAME_CONFIG.offline.maxMs);
-  const stepMs = GAME_CONFIG.offline.stepMs;
-  const steps = Math.floor(offlineMs / stepMs);
-
-  if (steps <= 0) {
-    return { ms: 0, gold: 0, xp: 0 };
-  }
-
-  const beforeGold = state.economy.gold;
-  const beforeXp = state.hero.xp;
-
-  const systemManager = createSystemManager();
-  systemManager.register(combatSystem);
-  systemManager.register(progressionSystem);
-
-  for (let i = 0; i < steps; i += 1) {
-    systemManager.runStep(state, { events: [] }, stepMs);
-  }
-
-  state.meta.lastActiveAt = now;
-  state.meta.updatedAt = now;
-
-  return {
-    ms: steps * stepMs,
-    gold: Math.floor(state.economy.gold - beforeGold),
-    xp: Math.floor(state.hero.xp - beforeXp)
-  };
-}
-
-function wireUiHandlers(ui, state, gameLoop) {
-  ui.buyAttackButton.addEventListener('click', () => {
-    const bought = upgradeSystem.tryBuyAttack(state);
-    if (bought) {
-      gameLoop.markDirty();
-      setStatus(ui, 'Purchased attack upgrade.');
-      render(state, ui);
-    }
-  });
-
-  ui.buyVitalityButton.addEventListener('click', () => {
-    const bought = upgradeSystem.tryBuyVitality(state);
-    if (bought) {
-      gameLoop.markDirty();
-      setStatus(ui, 'Purchased vitality upgrade.');
-      render(state, ui);
-    }
+function wireTabs(ui, store) {
+  ui.tabButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      const selected = button.dataset.tab;
+      store.update((state) => ({
+        ...state,
+        ui: {
+          ...state.ui,
+          activeTab: selected
+        }
+      }), 'tab-change');
+    });
   });
 
   ui.pullRecruitButton.addEventListener('click', () => {
@@ -172,6 +197,17 @@ function wireUiHandlers(ui, state, gameLoop) {
 
 function getUiRefs() {
   return {
+    currencyStrip: document.getElementById('currency-strip'),
+    tabButtons: Array.from(document.querySelectorAll('.tab-button')),
+    panels: Array.from(document.querySelectorAll('[data-panel]')),
+    overviewContent: document.getElementById('overview-content'),
+    partyContent: document.getElementById('party-content'),
+    recruitContent: document.getElementById('recruit-content'),
+    passiveContent: document.getElementById('passive-content'),
+    combatContent: document.getElementById('combat-content'),
+    questsContent: document.getElementById('quests-content'),
+    inventoryContent: document.getElementById('inventory-content'),
+    statusLine: document.getElementById('status-line')
     heroStats: document.getElementById('hero-stats'),
     worldStats: document.getElementById('world-stats'),
     economyStats: document.getElementById('economy-stats'),
@@ -193,5 +229,5 @@ function getUiRefs() {
 
 bootstrap().catch((error) => {
   // eslint-disable-next-line no-console
-  console.error('Boot failure', error);
+  console.error(error);
 });
