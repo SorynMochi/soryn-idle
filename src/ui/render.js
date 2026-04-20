@@ -1,4 +1,6 @@
 import { COMBAT_AREAS, COMBAT_AREAS_BY_ID } from '../content/combatAreas.js';
+import { EQUIPMENT_SLOT_ORDER } from '../content/equipment.js';
+import { equipmentSystem } from '../systems/equipmentSystem.js';
 import { partySystem } from '../systems/partySystem.js';
 
 function row(label, value) {
@@ -26,11 +28,14 @@ export function render(state, ui) {
   ui.partyContent.innerHTML = `<div class="grid-rows">${[
     row('Active Party Size', `${activeMembers.length} / ${state.party.maxSlots}`),
     row('Combined HP', partyTotals.hp),
+    row('Combined MP', partyTotals.mp),
     row('Combined ATK', partyTotals.atk),
     row('Combined DEF', partyTotals.def),
+    row('Combined MAG', partyTotals.mag),
+    row('Combined RES', partyTotals.res),
     row('Combined SPD', partyTotals.spd)
   ].join('')}</div><ul class="roster-list">${activeMembers
-    .map((member) => `<li class="roster-row"><span>${member.name}</span><span class="muted">ATK ${member.baseStats.atk} · DEF ${member.baseStats.def} · SPD ${member.baseStats.spd}</span></li>`)
+    .map((member) => `<li class="roster-row"><span>${member.name}</span><span class="muted">ATK ${member.finalStats.atk} · DEF ${member.finalStats.def} · SPD ${member.finalStats.spd} · Specialty ${member.passiveSpecialty.name}</span></li>`)
     .join('') || '<li class="roster-row">No active members assigned.</li>'}</ul>`;
 
   ui.recruitContent.innerHTML = '<p class="note">Recruitment UI is pending. Seeded characters are active for combat tuning.</p>';
@@ -45,9 +50,86 @@ export function render(state, ui) {
   ui.combatContent.innerHTML = renderCombat(state, selectedArea);
 
   ui.questsContent.innerHTML = '<p class="note">Quest integration is planned after combat and passive loops stabilize.</p>';
-  ui.inventoryContent.innerHTML = '<p class="note">Inventory and crafting hooks are scaffolded for future milestones.</p>';
+  ui.inventoryContent.innerHTML = renderInventory(state);
 
   setActiveTab(state.ui.activeTab, ui);
+}
+
+function renderInventory(state) {
+  const rosterViewsById = Object.fromEntries(
+    [...partySystem.getActiveMembers(state), ...partySystem.getBenchMembers(state)].map((member) => [member.instanceId, member])
+  );
+  const rosterMembers = state.roster.ownedInstanceIds
+    .map((instanceId) => rosterViewsById[instanceId])
+    .filter(Boolean);
+
+  const equipmentInventoryRows = Object.entries(state.inventory.equipment ?? {})
+    .filter(([, count]) => count > 0)
+    .map(([itemId, count]) => {
+      const item = equipmentSystem.getItemById(itemId);
+      if (!item) return '';
+      return `<li class="roster-row"><span>${item.name}</span><span class="muted">${item.slot} · ${item.category} · Qty ${count}</span></li>`;
+    })
+    .filter(Boolean)
+    .join('');
+
+  const characterRows = rosterMembers
+    .map((member) => {
+      const slotRows = EQUIPMENT_SLOT_ORDER.map((slotId) => renderEquipmentSlot(state, member, slotId)).join('');
+      const specialtyHooks = member.passiveSpecialtyHooks?.hooks ?? {};
+      return `
+        <li class="equipment-card">
+          <div class="equipment-header">
+            <strong>${member.name}</strong>
+            <span class="muted">${member.passiveSpecialty.name}</span>
+          </div>
+          <div class="muted specialty-hooks">
+            Crafting x${(specialtyHooks.crafting ?? 1).toFixed(2)} ·
+            Quest x${(specialtyHooks.questRewards ?? 1).toFixed(2)} ·
+            Combat EXP x${(specialtyHooks.combatExp ?? 1).toFixed(2)} ·
+            Drops x${(specialtyHooks.itemDropChance ?? 1).toFixed(2)}
+          </div>
+          <div class="grid-rows">${slotRows}</div>
+        </li>
+      `;
+    })
+    .join('');
+
+  return `
+    <div class="grid-rows">
+      ${row('Owned Equipment Types', Object.keys(state.inventory.equipment ?? {}).length)}
+      ${row('Equippable Characters', rosterMembers.length)}
+    </div>
+    <h3>Equipment Inventory</h3>
+    <ul class="roster-list">${equipmentInventoryRows || '<li class="roster-row">No spare gear in inventory.</li>'}</ul>
+    <h3>Character Loadouts</h3>
+    <ul class="roster-list">${characterRows || '<li class="roster-row">No recruited characters yet.</li>'}</ul>
+    <p class="note">Accessories are universal. Weapon and armor categories follow each character profile.</p>
+  `;
+}
+
+function renderEquipmentSlot(state, member, slotId) {
+  const equippedId = member.equipmentSlots?.[slotId] ?? '';
+  const equippedItem = equippedId ? equipmentSystem.getItemById(equippedId) : null;
+  const options = equipmentSystem.getEquipOptions(state, member.instanceId, slotId);
+
+  const optionTags = [
+    `<option value="">${equippedItem ? 'Unequip' : 'None'}</option>`,
+    ...options.map((item) => `<option value="${item.id}" ${equippedId === item.id ? 'selected' : ''}>${item.name} (${formatStatSummary(item.stats)})</option>`)
+  ].join('');
+
+  return `
+    <label class="row-label">${slotId.toUpperCase()}</label>
+    <select data-equip-instance="${member.instanceId}" data-equip-slot="${slotId}">
+      ${optionTags}
+    </select>
+  `;
+}
+
+function formatStatSummary(stats) {
+  return ['hp', 'mp', 'atk', 'def', 'mag', 'res', 'spd']
+    .map((key) => `${key.toUpperCase()} ${stats[key] >= 0 ? '+' : ''}${stats[key]}`)
+    .join(' ');
 }
 
 function renderCombat(state, area) {

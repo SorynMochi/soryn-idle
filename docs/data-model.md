@@ -156,13 +156,42 @@ Validation rules:
 ```js
 {
   id: "sword_plate_accessory",
-  allowed: {
-    weaponTypes: ["sword"],
-    armorTypes: ["plate", "mail"],
-    accessory: true
+  slotRules: {
+    weapon: ["sword"],
+    armor: ["plate"],
+    accessory: ["accessory"]
   }
 }
 ```
+
+### Equipment inventory and per-instance slots (`save.inventory` + `save.roster`)
+
+```js
+{
+  inventory: {
+    equipment: {
+      gear_ironblade: 1,
+      gear_luck_charm: 2
+    }
+  },
+  roster: {
+    byInstanceId: {
+      inst_0001: {
+        equipmentSlots: {
+          weapon: "gear_ironblade",
+          armor: null,
+          accessory: "gear_luck_charm"
+        }
+      }
+    }
+  }
+}
+```
+
+Rules:
+- Weapon and armor categories are validated against `slotRules`.
+- Accessories are universal via `accessory` category support in every profile.
+- Equipping consumes inventory quantity; unequipping returns the item.
 
 ---
 

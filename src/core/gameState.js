@@ -1,6 +1,7 @@
 import { GAME_CONFIG } from '../config/constants.js';
 import { PASSIVE_CATEGORY_ORDER, PASSIVE_RESOURCE_KEYS } from '../content/passiveActions.js';
 import { COMBAT_AREAS, COMBAT_AREAS_BY_ID, COMBAT_TICK_MS } from '../content/combatAreas.js';
+import { STARTING_EQUIPMENT_INVENTORY } from '../content/equipment.js';
 
 export function createInitialState(now = Date.now()) {
   return {
@@ -47,6 +48,9 @@ export function createInitialState(now = Date.now()) {
     },
     gacha: {
       lastPullResult: null
+    },
+    inventory: {
+      equipment: { ...STARTING_EQUIPMENT_INVENTORY }
     },
     passive: {
       selectedCategoryId: PASSIVE_CATEGORY_ORDER[0],
@@ -102,6 +106,14 @@ export function normalizeState(rawState) {
 
   merged.currencies.gil = Math.floor(merged.economy.gold);
   merged.currencies.crystalShards = Math.floor(merged.economy.shards);
+  merged.inventory.equipment = normalizeEquipmentInventory(merged.inventory.equipment);
+
+  for (const instanceId of merged.roster.ownedInstanceIds) {
+    const instance = merged.roster.byInstanceId[instanceId];
+    if (!instance) continue;
+
+    instance.equipmentSlots = normalizeEquipmentSlots(instance.equipmentSlots);
+  }
 
   return merged;
 }
@@ -136,4 +148,25 @@ function deepMerge(target, source) {
 
 function isObject(value) {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function normalizeEquipmentInventory(rawInventory) {
+  const normalized = { ...STARTING_EQUIPMENT_INVENTORY };
+  if (!isObject(rawInventory)) {
+    return normalized;
+  }
+
+  for (const [itemId, amount] of Object.entries(rawInventory)) {
+    normalized[itemId] = Math.max(0, Math.floor(Number(amount) || 0));
+  }
+
+  return normalized;
+}
+
+function normalizeEquipmentSlots(rawSlots) {
+  return {
+    weapon: typeof rawSlots?.weapon === 'string' ? rawSlots.weapon : null,
+    armor: typeof rawSlots?.armor === 'string' ? rawSlots.armor : null,
+    accessory: typeof rawSlots?.accessory === 'string' ? rawSlots.accessory : null
+  };
 }

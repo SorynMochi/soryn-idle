@@ -8,6 +8,7 @@ import { combatSystem } from './systems/combatSystem.js';
 import { passiveSystem } from './systems/passiveSystem.js';
 import { progressionSystem } from './systems/progressionSystem.js';
 import { recruitmentSystem } from './systems/recruitmentSystem.js';
+import { equipmentSystem } from './systems/equipmentSystem.js';
 import { render, setStatus } from './ui/render.js';
 
 async function bootstrap() {
@@ -81,6 +82,31 @@ function wireUi(ui, store, gameLoop) {
       render(state, ui);
     }
   });
+
+  ui.inventoryPanel.addEventListener('change', (event) => {
+    const select = event.target.closest('select[data-equip-instance][data-equip-slot]');
+    if (!select) {
+      return;
+    }
+
+    const { equipInstance: instanceId, equipSlot: slotId } = select.dataset;
+    const nextItemId = select.value;
+    const state = store.getState();
+
+    const result = nextItemId
+      ? equipmentSystem.equip(state, instanceId, nextItemId, slotId)
+      : equipmentSystem.unequip(state, instanceId, slotId);
+
+    if (result.ok) {
+      gameLoop.markDirty();
+      setStatus(ui, nextItemId ? 'Equipment updated.' : 'Equipment removed.', true);
+      render(state, ui);
+      return;
+    }
+
+    setStatus(ui, result.reason ?? 'Unable to change equipment.');
+    render(state, ui);
+  });
 }
 
 function getUiRefs() {
@@ -96,6 +122,7 @@ function getUiRefs() {
     questsContent: document.getElementById('quests-content'),
     inventoryContent: document.getElementById('inventory-content'),
     combatPanel: document.querySelector('[data-panel="combat"]'),
+    inventoryPanel: document.querySelector('[data-panel="inventory"]'),
     statusLine: document.getElementById('status-line')
   };
 }
