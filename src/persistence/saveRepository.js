@@ -1,5 +1,5 @@
 import { STORAGE_KEYS } from '../config/constants.js';
-import { idbGet, idbPut } from './indexedDb.js';
+import { idbDelete, idbGet, idbPut } from './indexedDb.js';
 
 const DEFAULT_SLOT = 'slot-1';
 const inMemorySaves = new Map();
@@ -77,4 +77,20 @@ export async function saveState(state) {
 
   safeLocalStorageSet(STORAGE_KEYS.lastSavedAt, String(Date.now()));
   safeLocalStorageSet(STORAGE_KEYS.version, String(state.meta.version));
+}
+
+export async function clearState(slotId = getActiveSlot()) {
+  try {
+    await idbDelete(slotId);
+  } catch (_error) {
+    // continue clearing fallback storage
+  }
+
+  try {
+    localStorage.removeItem(getSnapshotKey(slotId));
+  } catch (_error) {
+    // noop
+  }
+
+  inMemorySaves.delete(slotId);
 }
