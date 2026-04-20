@@ -72,6 +72,15 @@
       </footer>
     </main>
 
+    <script>
+      if (window.location.protocol === 'file:') {
+        const statusLine = document.getElementById('status-line');
+        if (statusLine) {
+          statusLine.textContent = 'Boot blocked: run from a local web server (http://localhost) instead of file://.';
+          statusLine.classList.remove('good');
+        }
+      }
+    </script>
     <script type="module" src="src/main.js"></script>
   </body>
 </html>
