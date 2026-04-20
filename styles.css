@@ -104,3 +104,11 @@ button:hover {
   color: var(--muted);
   font-size: 0.9rem;
 }
+
+.passive-row {
+  align-items: flex-start;
+}
+
+.passive-row .button-stack {
+  min-width: 132px;
+}
