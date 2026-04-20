@@ -1,5 +1,5 @@
 export const GAME_CONFIG = {
-  version: 1,
+  version: 2,
   tickMs: 100,
   maxStepsPerFrame: 10,
   renderIntervalMs: 150,
@@ -18,6 +18,6 @@ export const STORAGE_KEYS = {
 
 export const DB_CONFIG = {
   name: 'idleRpgSaves',
-  version: 1,
+  version: 2,
   storeName: 'saves'
 };

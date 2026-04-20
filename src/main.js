@@ -4,7 +4,9 @@ import { createGameLoop } from './core/gameLoop.js';
 import { createSystemManager } from './core/systemManager.js';
 import { loadState, saveState } from './persistence/saveRepository.js';
 import { combatSystem } from './systems/combatSystem.js';
+import { partySystem } from './systems/partySystem.js';
 import { progressionSystem } from './systems/progressionSystem.js';
+import { recruitmentSystem } from './systems/recruitmentSystem.js';
 import { upgradeSystem } from './systems/upgradeSystem.js';
 import { render, setOfflineSummary, setStatus } from './ui/render.js';
 
@@ -14,6 +16,7 @@ async function bootstrap() {
 
   const loaded = await loadState();
   const state = normalizeState(loaded ?? createInitialState());
+  const wasStarterAssigned = recruitmentSystem.initializeStarter(state);
 
   const offlineResult = applyOfflineProgress(state);
   if (offlineResult.ms > 0) {
@@ -29,6 +32,8 @@ async function bootstrap() {
   systemManager.register(combatSystem);
   systemManager.register(progressionSystem);
   systemManager.register(upgradeSystem);
+  systemManager.register(recruitmentSystem);
+  systemManager.register(partySystem);
 
   const gameLoop = createGameLoop({
     state,
@@ -50,8 +55,11 @@ async function bootstrap() {
 
   wireUiHandlers(ui, state, gameLoop);
 
+  if (wasStarterAssigned) {
+    setStatus(ui, 'The Vanguard Caelan joins your party. Recruit more allies with Crystal Shards.');
+  }
+
   render(state, ui);
-  setStatus(ui, 'Running');
   gameLoop.start();
 
   document.addEventListener('visibilitychange', async () => {
@@ -118,6 +126,48 @@ function wireUiHandlers(ui, state, gameLoop) {
       render(state, ui);
     }
   });
+
+  ui.pullRecruitButton.addEventListener('click', () => {
+    const result = recruitmentSystem.performPull(state);
+    if (!result.ok) {
+      setStatus(ui, result.reason);
+      render(state, ui);
+      return;
+    }
+
+    gameLoop.markDirty();
+    setStatus(ui, `Recruited ${result.name} (${result.tierId.toUpperCase()}).`);
+    render(state, ui);
+  });
+
+  ui.partyPanel.addEventListener('click', (event) => {
+    const button = event.target.closest('button[data-action]');
+    if (!button) {
+      return;
+    }
+
+    const action = button.dataset.action;
+    const instanceId = button.dataset.instanceId;
+    const slotIndex = Number(button.dataset.slot);
+
+    if (action === 'assign' && instanceId && Number.isInteger(slotIndex)) {
+      const assigned = partySystem.assign(state, instanceId, slotIndex);
+      if (assigned) {
+        gameLoop.markDirty();
+        setStatus(ui, 'Assigned party member.');
+      }
+    }
+
+    if (action === 'remove' && Number.isInteger(slotIndex)) {
+      const removed = partySystem.remove(state, slotIndex);
+      if (removed) {
+        gameLoop.markDirty();
+        setStatus(ui, 'Removed party member.');
+      }
+    }
+
+    render(state, ui);
+  });
 }
 
 function getUiRefs() {
@@ -126,10 +176,18 @@ function getUiRefs() {
     worldStats: document.getElementById('world-stats'),
     economyStats: document.getElementById('economy-stats'),
     upgradeStats: document.getElementById('upgrade-stats'),
+    recruitStats: document.getElementById('recruit-stats'),
+    recruitResult: document.getElementById('recruit-result'),
+    recruitRates: document.getElementById('recruit-rates'),
+    partyTotals: document.getElementById('party-totals'),
+    partyActive: document.getElementById('party-active'),
+    partyBench: document.getElementById('party-bench'),
+    partyPanel: document.getElementById('party-panel'),
     status: document.getElementById('status'),
     offlineSummary: document.getElementById('offline-summary'),
     buyAttackButton: document.getElementById('buy-attack'),
-    buyVitalityButton: document.getElementById('buy-vitality')
+    buyVitalityButton: document.getElementById('buy-vitality'),
+    pullRecruitButton: document.getElementById('pull-recruit')
   };
 }
 
