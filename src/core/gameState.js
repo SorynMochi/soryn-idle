@@ -1,4 +1,6 @@
+import { INITIAL_SHARDS } from '../content/recruitmentBalance.js';
 import { GAME_CONFIG } from '../config/constants.js';
+import { partySystem } from '../systems/partySystem.js';
 
 export function createInitialState(now = Date.now()) {
   const enemy = buildEnemyForZone(1);
@@ -8,7 +10,8 @@ export function createInitialState(now = Date.now()) {
       version: GAME_CONFIG.version,
       createdAt: now,
       updatedAt: now,
-      lastActiveAt: now
+      lastActiveAt: now,
+      rngSeed: now % (2 ** 32)
     },
     hero: {
       level: 1,
@@ -20,7 +23,20 @@ export function createInitialState(now = Date.now()) {
     },
     economy: {
       gold: 0,
-      shards: 0
+      shards: INITIAL_SHARDS
+    },
+    roster: {
+      nextInstanceId: 1,
+      ownedInstanceIds: [],
+      byInstanceId: {}
+    },
+    party: {
+      minSize: 1,
+      maxSlots: 4,
+      activeInstanceIds: [null, null, null, null]
+    },
+    gacha: {
+      lastPullResult: null
     },
     world: {
       zone: 1,
@@ -46,9 +62,23 @@ export function normalizeState(rawState) {
   merged.meta.version = GAME_CONFIG.version;
   merged.hero.hp = clamp(merged.hero.hp, 0, merged.hero.maxHp);
 
+  if (!Number.isFinite(merged.meta.rngSeed)) {
+    merged.meta.rngSeed = Date.now() % (2 ** 32);
+  }
+
   if (!merged.world.enemy || typeof merged.world.enemy.hp !== 'number') {
     merged.world.enemy = buildEnemyForZone(merged.world.zone);
   }
+
+  if (!Number.isFinite(merged.roster.nextInstanceId)) {
+    merged.roster.nextInstanceId = 1;
+  }
+
+  merged.roster.ownedInstanceIds = merged.roster.ownedInstanceIds.filter((instanceId) =>
+    Boolean(merged.roster.byInstanceId[instanceId])
+  );
+
+  partySystem.normalize(merged);
 
   return merged;
 }
