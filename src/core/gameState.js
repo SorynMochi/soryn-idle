@@ -2,6 +2,7 @@ import { GAME_CONFIG } from '../config/constants.js';
 import { PASSIVE_CATEGORY_ORDER, PASSIVE_RESOURCE_KEYS } from '../content/passiveActions.js';
 import { COMBAT_AREAS, COMBAT_AREAS_BY_ID, COMBAT_TICK_MS } from '../content/combatAreas.js';
 import { STARTING_EQUIPMENT_INVENTORY } from '../content/equipment.js';
+import { INITIAL_INVENTORY_MATERIALS } from '../content/resources.js';
 
 export function createInitialState(now = Date.now()) {
   return {
@@ -59,7 +60,23 @@ export function createInitialState(now = Date.now()) {
       lastPullResult: null
     },
     inventory: {
-      equipment: { ...STARTING_EQUIPMENT_INVENTORY }
+      equipment: { ...STARTING_EQUIPMENT_INVENTORY },
+      materials: { ...INITIAL_INVENTORY_MATERIALS }
+    },
+    crafting: {
+      unlocked: false,
+      knownRecipeIds: [],
+      stationLevels: {},
+      queue: [],
+      prototype: {
+        selectedRecipeId: null,
+        requestedCount: 1
+      },
+      stats: {
+        attempts: 0,
+        completions: 0,
+        totalMaterialConsumed: 0
+      }
     },
     passive: {
       selectedCategoryId: PASSIVE_CATEGORY_ORDER[0],
@@ -128,6 +145,22 @@ export function normalizeState(rawState) {
   merged.currencies.gil = Math.floor(merged.economy.gold);
   merged.currencies.crystalShards = Math.floor(merged.economy.shards);
   merged.inventory.equipment = normalizeEquipmentInventory(merged.inventory.equipment);
+  merged.inventory.materials = normalizeMaterialInventory(merged.inventory.materials);
+
+  merged.crafting.knownRecipeIds = Array.isArray(merged.crafting.knownRecipeIds)
+    ? [...new Set(merged.crafting.knownRecipeIds.filter((id) => typeof id === 'string'))]
+    : [];
+  merged.crafting.stationLevels = isObject(merged.crafting.stationLevels) ? merged.crafting.stationLevels : {};
+  merged.crafting.queue = Array.isArray(merged.crafting.queue) ? merged.crafting.queue : [];
+  merged.crafting.prototype = isObject(merged.crafting.prototype) ? merged.crafting.prototype : {
+    selectedRecipeId: null,
+    requestedCount: 1
+  };
+  merged.crafting.stats = isObject(merged.crafting.stats) ? merged.crafting.stats : {
+    attempts: 0,
+    completions: 0,
+    totalMaterialConsumed: 0
+  };
 
   for (const instanceId of merged.roster.ownedInstanceIds) {
     const instance = merged.roster.byInstanceId[instanceId];
@@ -180,6 +213,19 @@ function normalizeEquipmentInventory(rawInventory) {
 
   for (const [itemId, amount] of Object.entries(rawInventory)) {
     normalized[itemId] = Math.max(0, Math.floor(Number(amount) || 0));
+  }
+
+  return normalized;
+}
+
+function normalizeMaterialInventory(rawInventory) {
+  const normalized = { ...INITIAL_INVENTORY_MATERIALS };
+  if (!isObject(rawInventory)) {
+    return normalized;
+  }
+
+  for (const [materialId, amount] of Object.entries(rawInventory)) {
+    normalized[materialId] = Math.max(0, Number(amount) || 0);
   }
 
   return normalized;

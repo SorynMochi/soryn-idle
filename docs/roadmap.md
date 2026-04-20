@@ -170,3 +170,20 @@ This plan turns the project guidance into a concrete implementation sequence for
 - **Why versioned saves early?** Save compatibility bugs are hard to fix later; early migrations reduce risk.
 - **Why keep systems separate?** Smaller files are easier to debug, and one system change is less likely to break everything.
 - **Why delay equipment/crafting?** Core loops (state, roster, passive, combat) must be stable before adding more multipliers and dependencies.
+
+---
+
+## Ambiguities and concise clarifications (April 20, 2026)
+
+These notes flag requirements that are currently too vague to implement safely without assumptions.
+
+1. **“No clicker-centric core loop” needs acceptance criteria.**
+   - Clarification proposal: “No primary progression action should require repeated manual clicking more than once every 30 seconds; all core loops must progress via passive ticks.”
+2. **Crafting “hooks-only” scope lacks a minimum data contract.**
+   - Clarification proposal: “Hook phase must include save schema placeholders for materials + recipes + stations, plus at least one UI panel that displays hook state.”
+3. **Content-module boundaries are described, but ownership of cross-domain constants is unclear.**
+   - Clarification proposal: “Shared enums/taxonomies (resource categories, stat keys, reward types) should live in `src/content/` modules named by domain and be imported by systems.”
+4. **Roadmap references `saveLoad.js` + localStorage while runtime currently uses IndexedDB wrapper.**
+   - Clarification proposal: “Persistence layer may use IndexedDB + localStorage metadata as long as save payload remains JSON-serializable and export/import remains localStorage-compatible.”
+5. **Docs mention planned systems (gacha/quest/crafting) in mixed maturity levels.**
+   - Clarification proposal: “Each planned system section should include one maturity label: `planned`, `hooked`, or `implemented` to reduce misreads during feature work.”

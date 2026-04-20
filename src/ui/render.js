@@ -4,6 +4,7 @@ import { AIRSHIP_BOARD_UNLOCK, AIRSHIP_QUESTS } from '../content/quests.js';
 import { equipmentSystem } from '../systems/equipmentSystem.js';
 import { partySystem } from '../systems/partySystem.js';
 import { airshipQuestSystem } from '../systems/airshipQuestSystem.js';
+import { craftingSystem } from '../systems/craftingSystem.js';
 
 function row(label, value) {
   return `<div class="row"><span class="row-label">${label}</span><strong>${value}</strong></div>`;
@@ -53,6 +54,7 @@ export function render(state, ui) {
 
   ui.questsContent.innerHTML = renderQuestBoard(state);
   ui.inventoryContent.innerHTML = renderInventory(state);
+  ui.craftingContent.innerHTML = renderCrafting(state);
 
   setActiveTab(state.ui.activeTab, ui);
 }
@@ -270,6 +272,7 @@ function renderInventory(state) {
   return `
     <div class="grid-rows">
       ${row('Owned Equipment Types', Object.keys(state.inventory.equipment ?? {}).length)}
+      ${row('Tracked Material Types', Object.keys(state.inventory.materials ?? {}).length)}
       ${row('Equippable Characters', rosterMembers.length)}
     </div>
     <h3>Equipment Inventory</h3>
@@ -277,6 +280,46 @@ function renderInventory(state) {
     <h3>Character Loadouts</h3>
     <ul class="roster-list">${characterRows || '<li class="roster-row">No recruited characters yet.</li>'}</ul>
     <p class="note">Accessories are universal. Weapon and armor categories follow each character profile.</p>
+  `;
+}
+
+function renderCrafting(state) {
+  const hooks = craftingSystem.getCraftingHooks(state);
+  const categories = craftingSystem.getMaterialView(state);
+  const categoryRows = categories.map((category) => {
+    const materialRows = category.resources
+      .filter((resource) => resource.amount > 0 || category.id === 'crafting_material')
+      .map((resource) => `<li class="roster-row"><span>${resource.label}</span><span class="muted">Qty ${Math.floor(resource.amount)} · ${resource.tags.join(', ')}</span></li>`)
+      .join('');
+
+    return `
+      <article class="defeat-card">
+        <strong>${category.label}</strong>
+        <p class="note">${category.description}</p>
+        <ul class="roster-list">${materialRows || '<li class="roster-row">No resources tracked in this category yet.</li>'}</ul>
+      </article>
+    `;
+  }).join('');
+
+  return `
+    <div class="grid-rows">
+      ${row('Crafting Status', 'Foundations only (recipes not implemented)')}
+      ${row('Known Recipes', `${state.crafting.knownRecipeIds.length} (placeholder)`)}
+      ${row('Station Entries', Object.keys(state.crafting.stationLevels ?? {}).length)}
+      ${row('Quality Hook', `x${hooks.qualityMultiplier.toFixed(2)}`)}
+      ${row('Efficiency Hook', `x${hooks.efficiencyMultiplier.toFixed(2)}`)}
+      ${row('Yield Hook', `x${hooks.yieldMultiplier.toFixed(2)}`)}
+    </div>
+    <h3>Resource Categories</h3>
+    <div class="defeat-history">${categoryRows}</div>
+    <h3>Pending Design Decisions</h3>
+    <ul class="roster-list">
+      <li class="roster-row"><span>Recipe schema + unlock pacing</span><span class="muted">TBD</span></li>
+      <li class="roster-row"><span>Crafting station progression and queues</span><span class="muted">TBD</span></li>
+      <li class="roster-row"><span>Quality tiers, failure rules, salvage outputs</span><span class="muted">TBD</span></li>
+      <li class="roster-row"><span>UI flow for selecting ingredients</span><span class="muted">TBD</span></li>
+    </ul>
+    <p class="note">This panel intentionally exposes data hooks only so future crafting can integrate without save-schema rewrites.</p>
   `;
 }
 

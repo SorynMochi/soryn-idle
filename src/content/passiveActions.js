@@ -1,3 +1,5 @@
+import { RESOURCE_DEFINITIONS } from './resources.js';
+
 export const PASSIVE_ACTION_CATEGORIES = {
   mining: {
     id: 'mining',
@@ -75,4 +77,4 @@ export const PASSIVE_ACTION_CATEGORIES = {
 
 export const PASSIVE_CATEGORY_ORDER = ['mining', 'chopping', 'gathering', 'studying', 'training'];
 
-export const PASSIVE_RESOURCE_KEYS = ['ore', 'timber', 'herbs', 'insight', 'mastery'];
+export const PASSIVE_RESOURCE_KEYS = Object.keys(RESOURCE_DEFINITIONS);

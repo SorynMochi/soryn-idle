@@ -168,6 +168,7 @@ function getUiRefs() {
     combatContent: document.getElementById('combat-content'),
     questsContent: document.getElementById('quests-content'),
     inventoryContent: document.getElementById('inventory-content'),
+    craftingContent: document.getElementById('crafting-content'),
     combatPanel: document.querySelector('[data-panel="combat"]'),
     questsPanel: document.querySelector('[data-panel="quests"]'),
     inventoryPanel: document.querySelector('[data-panel="inventory"]'),
