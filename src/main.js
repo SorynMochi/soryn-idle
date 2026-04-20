@@ -4,6 +4,12 @@ import { createStore } from './core/store.js';
 import { loadState, saveState } from './persistence/saveRepository.js';
 import { calculateOfflineProgress } from './systems/offlineProgress.js';
 import { render, setStatus } from './ui/render.js';
+import { combatSystem } from './systems/combatSystem.js';
+import { partySystem } from './systems/partySystem.js';
+import { progressionSystem } from './systems/progressionSystem.js';
+import { recruitmentSystem } from './systems/recruitmentSystem.js';
+import { upgradeSystem } from './systems/upgradeSystem.js';
+import { render, setOfflineSummary, setStatus } from './ui/render.js';
 
 async function bootstrap() {
   const ui = getUiRefs();
@@ -19,6 +25,35 @@ async function bootstrap() {
     runtime: {
       ...current.runtime,
       lastOfflineDurationMs: offline.durationMs
+  const wasStarterAssigned = recruitmentSystem.initializeStarter(state);
+
+  const offlineResult = applyOfflineProgress(state);
+  if (offlineResult.ms > 0) {
+    setOfflineSummary(
+      ui,
+      `Offline progress: ${Math.floor(offlineResult.ms / 1000)}s simulated. +${offlineResult.gold} gold, +${offlineResult.xp} xp`
+    );
+  } else {
+    setOfflineSummary(ui, 'Offline progress: none');
+  }
+
+  const systemManager = createSystemManager();
+  systemManager.register(combatSystem);
+  systemManager.register(progressionSystem);
+  systemManager.register(upgradeSystem);
+  systemManager.register(recruitmentSystem);
+  systemManager.register(partySystem);
+
+  const gameLoop = createGameLoop({
+    state,
+    config: GAME_CONFIG,
+    systemManager,
+    onStep: ({ ctx }) => {
+      if (ctx.events.length) {
+        setStatus(ui, ctx.events[ctx.events.length - 1]);
+      }
+      state.meta.updatedAt = Date.now();
+      state.meta.lastActiveAt = Date.now();
     },
     meta: {
       ...current.meta,
@@ -30,6 +65,12 @@ async function bootstrap() {
   setStatus(ui, offline.summary);
 
   wireTabs(ui, store);
+  if (wasStarterAssigned) {
+    setStatus(ui, 'The Vanguard Caelan joins your party. Recruit more allies with Crystal Shards.');
+  }
+
+  render(state, ui);
+  gameLoop.start();
 
   store.subscribe((nextState, reason) => {
     render(nextState, ui);
@@ -110,6 +151,48 @@ function wireTabs(ui, store) {
       }), 'tab-change');
     });
   });
+
+  ui.pullRecruitButton.addEventListener('click', () => {
+    const result = recruitmentSystem.performPull(state);
+    if (!result.ok) {
+      setStatus(ui, result.reason);
+      render(state, ui);
+      return;
+    }
+
+    gameLoop.markDirty();
+    setStatus(ui, `Recruited ${result.name} (${result.tierId.toUpperCase()}).`);
+    render(state, ui);
+  });
+
+  ui.partyPanel.addEventListener('click', (event) => {
+    const button = event.target.closest('button[data-action]');
+    if (!button) {
+      return;
+    }
+
+    const action = button.dataset.action;
+    const instanceId = button.dataset.instanceId;
+    const slotIndex = Number(button.dataset.slot);
+
+    if (action === 'assign' && instanceId && Number.isInteger(slotIndex)) {
+      const assigned = partySystem.assign(state, instanceId, slotIndex);
+      if (assigned) {
+        gameLoop.markDirty();
+        setStatus(ui, 'Assigned party member.');
+      }
+    }
+
+    if (action === 'remove' && Number.isInteger(slotIndex)) {
+      const removed = partySystem.remove(state, slotIndex);
+      if (removed) {
+        gameLoop.markDirty();
+        setStatus(ui, 'Removed party member.');
+      }
+    }
+
+    render(state, ui);
+  });
 }
 
 function getUiRefs() {
@@ -125,6 +208,22 @@ function getUiRefs() {
     questsContent: document.getElementById('quests-content'),
     inventoryContent: document.getElementById('inventory-content'),
     statusLine: document.getElementById('status-line')
+    heroStats: document.getElementById('hero-stats'),
+    worldStats: document.getElementById('world-stats'),
+    economyStats: document.getElementById('economy-stats'),
+    upgradeStats: document.getElementById('upgrade-stats'),
+    recruitStats: document.getElementById('recruit-stats'),
+    recruitResult: document.getElementById('recruit-result'),
+    recruitRates: document.getElementById('recruit-rates'),
+    partyTotals: document.getElementById('party-totals'),
+    partyActive: document.getElementById('party-active'),
+    partyBench: document.getElementById('party-bench'),
+    partyPanel: document.getElementById('party-panel'),
+    status: document.getElementById('status'),
+    offlineSummary: document.getElementById('offline-summary'),
+    buyAttackButton: document.getElementById('buy-attack'),
+    buyVitalityButton: document.getElementById('buy-vitality'),
+    pullRecruitButton: document.getElementById('pull-recruit')
   };
 }
 

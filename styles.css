@@ -66,6 +66,10 @@ h2 {
   flex-wrap: wrap;
   gap: 0.5rem;
   justify-content: flex-end;
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1rem;
 }
 
 .currency-pill {
@@ -139,4 +143,37 @@ h2 {
 .footer {
   font-size: 0.93rem;
   color: var(--muted);
+}
+
+.roster-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.roster-row {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: space-between;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.5rem;
+  margin: 0.4rem 0;
+}
+
+.button-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.button-stack button {
+  margin-top: 0;
+  white-space: nowrap;
+}
+
+.muted {
+  color: var(--muted);
+  font-size: 0.9rem;
 }

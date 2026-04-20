@@ -440,3 +440,15 @@ Hook examples:
 - Use stable IDs everywhere (`char_*`, `mon_*`, `area_*`, `quest_*`) to keep references safe.
 - Keep save data normalized enough for performance (`byId` maps), but not so abstract it becomes hard to read.
 - Prefer additive schema evolution: new optional fields + migrations, not destructive rewrites.
+
+---
+
+## Current MVP implementation notes (April 2026)
+
+The runtime now includes a system-heavy, content-light recruitment + party slice:
+
+- Character tiers are implemented as data (`common` through `legendary`) in content modules.
+- Recruitment uses weighted shard pulls from a seeded starter roster (one starter unit + small gacha pool).
+- Party state supports `maxSlots: 4`, empty slots, and bench management via owned roster instances.
+- Character entries now include `passiveSpecialty` and `equipmentHook` fields as forward-compatible data hooks.
+- Equipment restrictions are not enforced yet; hooks exist only in data model.

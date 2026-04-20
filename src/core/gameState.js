@@ -1,6 +1,8 @@
+import { INITIAL_SHARDS } from '../content/recruitmentBalance.js';
 import { GAME_CONFIG } from '../config/constants.js';
 import { CHARACTER_ROSTER, RECRUIT_CONFIG } from '../content/roster.js';
 import { SAMPLE_QUESTS } from '../content/quests.js';
+import { partySystem } from '../systems/partySystem.js';
 
 export function createInitialState(now = Date.now()) {
   return {
@@ -8,7 +10,8 @@ export function createInitialState(now = Date.now()) {
       version: GAME_CONFIG.version,
       createdAt: now,
       updatedAt: now,
-      lastActiveAt: now
+      lastActiveAt: now,
+      rngSeed: now % (2 ** 32)
     },
     ui: {
       activeTab: 'overview'
@@ -24,6 +27,22 @@ export function createInitialState(now = Date.now()) {
     recruit: {
       shardCostPerPull: RECRUIT_CONFIG.shardCostPerPull,
       pool: CHARACTER_ROSTER
+    economy: {
+      gold: 0,
+      shards: INITIAL_SHARDS
+    },
+    roster: {
+      nextInstanceId: 1,
+      ownedInstanceIds: [],
+      byInstanceId: {}
+    },
+    party: {
+      minSize: 1,
+      maxSlots: 4,
+      activeInstanceIds: [null, null, null, null]
+    },
+    gacha: {
+      lastPullResult: null
     },
     passive: {
       status: 'Not Started',
@@ -67,6 +86,40 @@ export function normalizeState(rawState) {
   if (typeof merged.currencies.crystalShards !== 'number') {
     merged.currencies.crystalShards = RECRUIT_CONFIG.shardCostPerPull * 3;
   }
+  if (!Number.isFinite(merged.meta.rngSeed)) {
+    merged.meta.rngSeed = Date.now() % (2 ** 32);
+  }
+
+  if (!merged.world.enemy || typeof merged.world.enemy.hp !== 'number') {
+    merged.world.enemy = buildEnemyForZone(merged.world.zone);
+  }
+
+  if (!Number.isFinite(merged.roster.nextInstanceId)) {
+    merged.roster.nextInstanceId = 1;
+  }
+
+  merged.roster.ownedInstanceIds = merged.roster.ownedInstanceIds.filter((instanceId) =>
+    Boolean(merged.roster.byInstanceId[instanceId])
+  );
+
+  partySystem.normalize(merged);
+
+  return merged;
+}
+
+export function buildEnemyForZone(zone) {
+  const scalar = 1 + (zone - 1) * 0.18;
+  const maxHp = Math.floor(24 * scalar);
+
+  return {
+    name: `Slime Z${zone}`,
+    hp: maxHp,
+    maxHp,
+    attack: Math.floor(2 * scalar),
+    rewardGold: Math.floor(6 * scalar),
+    rewardXp: Math.floor(8 * scalar)
+  };
+}
 
   return merged;
 }
