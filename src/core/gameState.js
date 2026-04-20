@@ -196,6 +196,11 @@ export function normalizeState(rawState) {
     const instance = merged.roster.byInstanceId[instanceId];
     if (!instance) continue;
 
+    instance.level = Number.isFinite(instance.level) ? Math.max(1, Math.floor(instance.level)) : 1;
+    instance.exp = Number.isFinite(instance.exp) ? Math.max(0, instance.exp) : 0;
+    instance.expToNext = Number.isFinite(instance.expToNext)
+      ? Math.max(1, Math.floor(instance.expToNext))
+      : characterXpToNextLevel(instance.level);
     instance.equipmentSlots = normalizeEquipmentSlots(instance.equipmentSlots);
     instance.lockState = normalizeLockState(instance.lockState);
   }
@@ -205,6 +210,10 @@ export function normalizeState(rawState) {
 
 export function xpToNextLevel(level = 1) {
   return 20 + level * 5;
+}
+
+export function characterXpToNextLevel(level = 1) {
+  return 15 + Math.floor(level * 7.5);
 }
 
 function deepMerge(target, source) {

@@ -295,6 +295,16 @@ function wireUi(ui, store, gameLoop, uiRender) {
 
 function createUiRenderCoordinator(ui) {
   const INTERACTIVE_TAGS = new Set(['SELECT', 'INPUT', 'TEXTAREA']);
+  const SCROLL_PRESERVE_IDS = [
+    'overview-content',
+    'party-content',
+    'recruit-content',
+    'passive-content',
+    'combat-content',
+    'quests-content',
+    'inventory-content',
+    'crafting-content'
+  ];
   let pendingState = null;
 
   const flushIfReady = () => {
@@ -316,6 +326,11 @@ function createUiRenderCoordinator(ui) {
   document.addEventListener('keyup', onInteractionEnd);
 
   function isInteractionActive() {
+    const selection = window.getSelection?.();
+    if (selection && !selection.isCollapsed) {
+      return true;
+    }
+
     const activeElement = document.activeElement;
     if (activeElement && INTERACTIVE_TAGS.has(activeElement.tagName)) {
       return true;
@@ -325,11 +340,25 @@ function createUiRenderCoordinator(ui) {
   }
 
   function applyRender(state) {
+    const scrollPositions = new Map(
+      SCROLL_PRESERVE_IDS
+        .map((id) => document.getElementById(id))
+        .filter(Boolean)
+        .map((element) => [element.id, element.scrollTop])
+    );
+
     const openDefeatCards = new Set(
       Array.from(ui.combatContent.querySelectorAll('details[data-defeat-key][open]')).map((element) => element.dataset.defeatKey)
     );
 
     render(state, ui);
+
+    for (const [id, scrollTop] of scrollPositions) {
+      const element = document.getElementById(id);
+      if (element) {
+        element.scrollTop = scrollTop;
+      }
+    }
 
     if (openDefeatCards.size === 0) {
       return;

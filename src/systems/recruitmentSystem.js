@@ -1,5 +1,6 @@
 import { CHARACTERS_BY_ID, CHARACTER_CONTENT, STARTER_CHARACTER_ID } from '../content/characters.js';
 import { TIER_ORDER } from '../content/characterTiers.js';
+import { characterXpToNextLevel } from '../core/gameState.js';
 import { RECRUITMENT_BALANCE, TIER_PROBABILITIES } from '../content/recruitmentBalance.js';
 import { nextRandomFloat, pickOne, pickWeighted } from '../core/random.js';
 
@@ -70,6 +71,7 @@ export const recruitmentSystem = {
       characterId,
       level: 1,
       exp: 0,
+      expToNext: characterXpToNextLevel(1),
       awakenRank: 0,
       equipmentSlots: {
         weapon: null,

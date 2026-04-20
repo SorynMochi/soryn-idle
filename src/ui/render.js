@@ -78,7 +78,7 @@ function renderParty(state, activeMembers, partyTotals) {
   <div class="grid-rows">${slotControls}</div>
   <h3>Active Members</h3>
   <ul class="roster-list">${activeMembers
-    .map((member) => `<li class="roster-row"><span>${member.name}</span><span class="muted">ATK ${member.finalStats.atk} · DEF ${member.finalStats.def} · SPD ${member.finalStats.spd} · Specialty ${member.passiveSpecialty.name}</span></li>`)
+    .map((member) => `<li class="roster-row"><span>${member.name} · Lv.${member.level}</span><span class="muted">EXP ${Math.floor(member.exp)} / ${member.expToNext} · ATK ${member.finalStats.atk} · DEF ${member.finalStats.def} · SPD ${member.finalStats.spd} · Specialty ${member.passiveSpecialty.name}</span></li>`)
     .join('') || '<li class="roster-row">No active members assigned.</li>'}</ul>`;
 }
 
@@ -334,7 +334,7 @@ function renderInventory(state) {
     .map(([itemId, count]) => {
       const item = equipmentSystem.getItemById(itemId);
       if (!item) return '';
-      return `<li class="roster-row"><span>${item.name}</span><span class="muted">${item.slot} · ${item.category} · Qty ${count}</span></li>`;
+      return `<li class="roster-row"><span>${item.name}</span><span class="muted">${item.slot.toUpperCase()} · ${item.category} · Qty ${count}</span></li>`;
     })
     .filter(Boolean)
     .join('');
@@ -346,8 +346,8 @@ function renderInventory(state) {
       return `
         <li class="equipment-card">
           <div class="equipment-header">
-            <strong>${member.name}</strong>
-            <span class="muted">${member.passiveSpecialty.name}</span>
+            <strong>${member.name} · Lv.${member.level}</strong>
+            <span class="muted">EXP ${Math.floor(member.exp)} / ${member.expToNext} · ${member.passiveSpecialty.name}</span>
           </div>
           <div class="muted specialty-hooks">
             Crafting x${(specialtyHooks.crafting ?? 1).toFixed(2)} ·
@@ -363,15 +363,16 @@ function renderInventory(state) {
 
   return `
     <div class="grid-rows">
-      ${row('Owned Equipment Types', Object.keys(state.inventory.equipment ?? {}).length)}
+      ${row('Owned Equipment Types', Object.entries(state.inventory.equipment ?? {}).filter(([, count]) => count > 0).length)}
+      ${row('Total Spare Gear', Object.values(state.inventory.equipment ?? {}).reduce((sum, value) => sum + Math.max(0, Number(value) || 0), 0))}
       ${row('Tracked Material Types', Object.keys(state.inventory.materials ?? {}).length)}
       ${row('Equippable Characters', rosterMembers.length)}
     </div>
-    <h3>Equipment Inventory</h3>
+    <h3>Armory Stock</h3>
     <ul class="roster-list">${equipmentInventoryRows || '<li class="roster-row">No spare gear in inventory.</li>'}</ul>
-    <h3>Character Loadouts</h3>
+    <h3>Loadout Management</h3>
     <ul class="roster-list">${characterRows || '<li class="roster-row">No recruited characters yet.</li>'}</ul>
-    <p class="note">Accessories are universal. Weapon and armor categories follow each character profile.</p>
+    <p class="note">Inventory has been restructured for persistent loadout control. Accessories are universal. Weapon and armor categories follow each character profile.</p>
   `;
 }
 
@@ -418,15 +419,15 @@ function renderCrafting(state) {
 function renderEquipmentSlot(state, member, slotId) {
   const equippedId = member.equipmentSlots?.[slotId] ?? '';
   const equippedItem = equippedId ? equipmentSystem.getItemById(equippedId) : null;
-  const options = equipmentSystem.getEquipOptions(state, member.instanceId, slotId);
+  const options = equipmentSystem.getEquipOptions(state, member.instanceId, slotId, equippedId);
 
   const optionTags = [
-    `<option value="">${equippedItem ? 'Unequip' : 'None'}</option>`,
+    `<option value="" ${equippedId ? '' : 'selected'}>${equippedItem ? 'Unequip' : 'None'}</option>`,
     ...options.map((item) => `<option value="${item.id}" ${equippedId === item.id ? 'selected' : ''}>${item.name} (${formatStatSummary(item.stats)})</option>`)
   ].join('');
 
   return `
-    <label class="row-label">${slotId.toUpperCase()}</label>
+    <label class="row-label">${slotId.toUpperCase()} · ${equippedItem?.name ?? 'Empty'}</label>
     <select data-equip-instance="${member.instanceId}" data-equip-slot="${slotId}">
       ${optionTags}
     </select>
@@ -466,7 +467,7 @@ function renderCombat(state, area) {
       ${row('Auto-Combat', state.combat.autoEnabled ? 'Running' : 'Paused')}
       ${row('Current Streak', state.combat.streak)}
       ${row('Total Victories', state.combat.totalVictories)}
-      ${row('Reward Growth', state.combat.streak >= area.softCapStreak ? 'Soft cap reached (rewards capped)' : `Scaling until streak ${area.softCapStreak}`)}
+      ${row('Reward Growth', state.combat.streak >= area.softCapStreak ? `Soft cap reached at ${area.softCapStreak} (EXP/Gil capped, monster power still rising)` : `Scaling until streak ${area.softCapStreak}`)}
       ${row('Current Monster', state.combat.currentMonster ? `${state.combat.currentMonster.name} Lv.${state.combat.currentMonster.level}` : 'Resolving...')}
     </div>
     <label class="row-label" for="combat-area-select">Combat Area</label>

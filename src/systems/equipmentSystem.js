@@ -112,10 +112,14 @@ export const equipmentSystem = {
     }
     return finalStats;
   },
-  getEquipOptions(state, instanceId, slotId) {
+  getEquipOptions(state, instanceId, slotId, equippedItemId = null) {
     return EQUIPMENT_ITEMS.filter((item) => {
       if (item.slot !== slotId) {
         return false;
+      }
+
+      if (item.id === equippedItemId) {
+        return true;
       }
 
       return this.canEquip(state, instanceId, item.id, slotId);

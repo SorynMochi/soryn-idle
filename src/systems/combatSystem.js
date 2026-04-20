@@ -42,6 +42,15 @@ export const combatSystem = {
       state.combat.streakExp += result.exp;
       state.combat.streakGil += result.gil;
 
+      for (const member of activeMembers) {
+        const instance = state.roster.byInstanceId?.[member.instanceId];
+        if (!instance) {
+          continue;
+        }
+
+        instance.exp = (instance.exp ?? 0) + result.exp;
+      }
+
       state.hero.xp += result.exp;
       state.economy.gold += result.gil;
 
@@ -121,21 +130,23 @@ export const combatSystem = {
 
 function generateMonster(state, area) {
   const base = pickOne(area.monsters, nextRandomFloat(state));
-  const progressStreak = Math.min(state.combat.streak, area.softCapStreak);
-  const scalingMultiplier = 1 + progressStreak * area.streakScalingPerWin;
-  const level = area.baseLevel + progressStreak;
+  const fullProgressStreak = Math.max(0, state.combat.streak);
+  const rewardProgressStreak = Math.min(fullProgressStreak, area.softCapStreak);
+  const statScalingMultiplier = 1 + fullProgressStreak * area.streakScalingPerWin;
+  const rewardScalingMultiplier = 1 + rewardProgressStreak * area.streakScalingPerWin;
+  const level = area.baseLevel + fullProgressStreak;
 
   return {
     id: base.id,
     name: base.name,
     level,
-    hp: Math.floor(base.statProfile.hp * scalingMultiplier),
-    atk: Math.floor(base.statProfile.atk * scalingMultiplier),
-    def: Math.floor(base.statProfile.def * scalingMultiplier),
-    spd: Math.floor(base.statProfile.spd * scalingMultiplier),
-    exp: Math.floor(base.rewardProfile.exp * scalingMultiplier),
-    gil: Math.floor(base.rewardProfile.gil * scalingMultiplier),
-    scalingMultiplier,
+    hp: Math.floor(base.statProfile.hp * statScalingMultiplier),
+    atk: Math.floor(base.statProfile.atk * statScalingMultiplier),
+    def: Math.floor(base.statProfile.def * statScalingMultiplier),
+    spd: Math.floor(base.statProfile.spd * statScalingMultiplier),
+    exp: Math.floor(base.rewardProfile.exp * rewardScalingMultiplier),
+    gil: Math.floor(base.rewardProfile.gil * rewardScalingMultiplier),
+    scalingMultiplier: statScalingMultiplier,
     softCapReached: state.combat.streak >= area.softCapStreak
   };
 }
