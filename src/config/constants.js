@@ -13,7 +13,8 @@ export const GAME_CONFIG = {
 export const STORAGE_KEYS = {
   activeSlot: 'idleRpg.activeSlot',
   lastSavedAt: 'idleRpg.lastSavedAt',
-  version: 'idleRpg.version'
+  version: 'idleRpg.version',
+  snapshotPrefix: 'idleRpg.snapshot.'
 };
 
 export const DB_CONFIG = {

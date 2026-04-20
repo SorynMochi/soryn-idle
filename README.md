@@ -37,5 +37,7 @@ Open `index.html` in a modern browser.
 - **Persistence** lives under `src/persistence/` (IndexedDB repository with localStorage pointers).
 - **Future simulation hooks** live under `src/systems/`.
 - **UI rendering** lives under `src/ui/`.
+- `index.html` boots `src/main.js` as the active runtime entrypoint.
+- Top-level `app.js` plus `game/` are legacy references retained for migration history and should not be used for new fixes.
 
 This structure keeps systems composable and avoids hardcoding one-off flows while systems are still in scaffold stage.

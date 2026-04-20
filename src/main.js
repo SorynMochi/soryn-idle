@@ -9,7 +9,9 @@ import { passiveSystem } from './systems/passiveSystem.js';
 import { progressionSystem } from './systems/progressionSystem.js';
 import { recruitmentSystem } from './systems/recruitmentSystem.js';
 import { equipmentSystem } from './systems/equipmentSystem.js';
+import { partySystem } from './systems/partySystem.js';
 import { airshipQuestSystem } from './systems/airshipQuestSystem.js';
+import { applyOfflineProgress } from './systems/offlineProgress.js';
 import { render, setStatus } from './ui/render.js';
 
 async function bootstrap() {
@@ -27,6 +29,8 @@ async function bootstrap() {
   systemManager.register(passiveSystem);
   systemManager.register(progressionSystem);
   systemManager.register(airshipQuestSystem);
+
+  const offlineResult = applyOfflineProgress(state, systemManager, GAME_CONFIG, Date.now());
 
   const gameLoop = createGameLoop({
     state,
@@ -50,7 +54,7 @@ async function bootstrap() {
 
   wireUi(ui, store, gameLoop);
   render(state, ui);
-  setStatus(ui, 'Combat and passive systems are running.');
+  setStatus(ui, offlineResult.summary, true);
   gameLoop.start();
 }
 
@@ -107,6 +111,102 @@ function wireUi(ui, store, gameLoop) {
     }
 
     setStatus(ui, result.reason ?? 'Unable to change equipment.');
+    render(state, ui);
+  });
+
+
+  ui.recruitPanel.addEventListener('click', (event) => {
+    const pullButton = event.target.closest('button[data-recruit-pull]');
+    if (!pullButton) {
+      return;
+    }
+
+    const state = store.getState();
+    const result = recruitmentSystem.performPull(state);
+    if (!result.ok) {
+      setStatus(ui, result.reason ?? 'Recruitment failed.');
+      render(state, ui);
+      return;
+    }
+
+    gameLoop.markDirty();
+    setStatus(ui, `Recruited ${result.name} (${result.tierId}).`, true);
+    render(state, ui);
+  });
+
+  ui.passivePanel.addEventListener('click', (event) => {
+    const state = store.getState();
+
+    const selectButton = event.target.closest('button[data-passive-select]');
+    if (selectButton) {
+      const categoryId = selectButton.dataset.passiveSelect;
+      const changed = passiveSystem.selectCategory(state, categoryId);
+      if (changed) {
+        gameLoop.markDirty();
+        setStatus(ui, 'Passive route changed.', true);
+      }
+      render(state, ui);
+      return;
+    }
+
+    const unlockButton = event.target.closest('button[data-passive-unlock]');
+    if (unlockButton) {
+      const categoryId = unlockButton.dataset.passiveUnlock;
+      const changed = passiveSystem.tryUnlockCategory(state, categoryId);
+      if (changed) {
+        gameLoop.markDirty();
+        setStatus(ui, 'Passive route unlocked.', true);
+      } else {
+        setStatus(ui, 'Unable to unlock route.');
+      }
+      render(state, ui);
+      return;
+    }
+
+    const upgradeButton = event.target.closest('button[data-passive-upgrade]');
+    if (upgradeButton) {
+      const categoryId = upgradeButton.dataset.passiveUpgrade;
+      const changed = passiveSystem.tryUpgradeCategory(state, categoryId);
+      if (changed) {
+        gameLoop.markDirty();
+        setStatus(ui, 'Passive route upgraded.', true);
+      } else {
+        setStatus(ui, 'Unable to upgrade route.');
+      }
+      render(state, ui);
+    }
+  });
+
+  ui.partyPanel.addEventListener('change', (event) => {
+    const select = event.target.closest('select[data-party-slot]');
+    if (!select) {
+      return;
+    }
+
+    const slotIndex = Number.parseInt(select.dataset.partySlot ?? '-1', 10);
+    if (slotIndex < 0) {
+      return;
+    }
+
+    const state = store.getState();
+    const selectedId = select.value;
+    let changed = false;
+
+    if (!selectedId) {
+      changed = partySystem.remove(state, slotIndex);
+    } else {
+      changed = partySystem.assign(state, selectedId, slotIndex);
+    }
+
+    partySystem.normalize(state);
+
+    if (changed) {
+      gameLoop.markDirty();
+      setStatus(ui, 'Party updated.', true);
+    } else {
+      setStatus(ui, 'Unable to update party slot.');
+    }
+
     render(state, ui);
   });
 
@@ -170,6 +270,9 @@ function getUiRefs() {
     inventoryContent: document.getElementById('inventory-content'),
     craftingContent: document.getElementById('crafting-content'),
     combatPanel: document.querySelector('[data-panel="combat"]'),
+    recruitPanel: document.querySelector('[data-panel="recruit"]'),
+    passivePanel: document.querySelector('[data-panel="passive"]'),
+    partyPanel: document.querySelector('[data-panel="party"]'),
     questsPanel: document.querySelector('[data-panel="quests"]'),
     inventoryPanel: document.querySelector('[data-panel="inventory"]'),
     statusLine: document.getElementById('status-line')
