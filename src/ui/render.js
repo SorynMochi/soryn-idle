@@ -29,9 +29,11 @@ export function render(state, ui) {
     row('Version', state.meta.version),
     row('Hero Level', state.hero.level),
     row('Hero EXP', `${Math.floor(state.hero.xp)} / ${state.hero.xpToNext}`),
+    row('Roster Size', state.roster.ownedInstanceIds.length),
     row('Combat Tick', `${state.combat.tickMs / 1000}s`),
     row('Autosaves', state.runtime.autosaveCount)
-  ].join('')}</div>`;
+  ].join('')}</div>
+  <button data-new-game-reset>Start New Game (Reset Save)</button>`;
 
   ui.partyContent.innerHTML = renderParty(state, activeMembers, partyTotals);
   ui.recruitContent.innerHTML = renderRecruit(state);
@@ -461,6 +463,7 @@ function renderCombat(state, area) {
   return `
     <div class="grid-rows">
       ${row('Selected Area', area.name)}
+      ${row('Auto-Combat', state.combat.autoEnabled ? 'Running' : 'Paused')}
       ${row('Current Streak', state.combat.streak)}
       ${row('Total Victories', state.combat.totalVictories)}
       ${row('Reward Growth', state.combat.streak >= area.softCapStreak ? 'Soft cap reached (rewards capped)' : `Scaling until streak ${area.softCapStreak}`)}
@@ -468,6 +471,7 @@ function renderCombat(state, area) {
     </div>
     <label class="row-label" for="combat-area-select">Combat Area</label>
     <select id="combat-area-select">${areaOptions}</select>
+    <button data-combat-toggle>${state.combat.autoEnabled ? 'Pause Auto-Combat' : 'Start Auto-Combat'}</button>
 
     <h3>Combat Log</h3>
     <ul class="combat-log">${chatRows || '<li>No battle results yet.</li>'}</ul>

@@ -9,6 +9,10 @@ const MAX_ROUNDS = 8;
 export const combatSystem = {
   id: 'combat',
   update(state, ctx, deltaMs) {
+    if (!state.combat.autoEnabled) {
+      return false;
+    }
+
     state.combat.elapsedMs += deltaMs;
 
     if (state.combat.elapsedMs < state.combat.tickMs) {
@@ -95,6 +99,20 @@ export const combatSystem = {
     state.combat.recentResults.unshift({
       ts: Date.now(),
       text: `Route changed to ${COMBAT_AREAS_BY_ID[areaId].name}.`
+    });
+    state.combat.recentResults = state.combat.recentResults.slice(0, MAX_CHAT_LOG);
+    return true;
+  },
+  setAutoEnabled(state, enabled) {
+    const nextEnabled = Boolean(enabled);
+    if (state.combat.autoEnabled === nextEnabled) {
+      return false;
+    }
+
+    state.combat.autoEnabled = nextEnabled;
+    state.combat.recentResults.unshift({
+      ts: Date.now(),
+      text: nextEnabled ? 'Auto-combat started.' : 'Auto-combat paused.'
     });
     state.combat.recentResults = state.combat.recentResults.slice(0, MAX_CHAT_LOG);
     return true;

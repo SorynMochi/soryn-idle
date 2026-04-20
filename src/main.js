@@ -3,7 +3,7 @@ import { createGameLoop } from './core/gameLoop.js';
 import { createInitialState, normalizeState } from './core/gameState.js';
 import { createStore } from './core/store.js';
 import { createSystemManager } from './core/systemManager.js';
-import { loadState, saveState } from './persistence/saveRepository.js';
+import { clearState, loadState, saveState } from './persistence/saveRepository.js';
 import { combatSystem } from './systems/combatSystem.js';
 import { passiveSystem } from './systems/passiveSystem.js';
 import { progressionSystem } from './systems/progressionSystem.js';
@@ -85,6 +85,21 @@ function wireUi(ui, store, gameLoop) {
     if (changed) {
       gameLoop.markDirty();
       setStatus(ui, 'Combat area changed.');
+      render(state, ui);
+    }
+  });
+
+  ui.combatPanel.addEventListener('click', (event) => {
+    const toggleButton = event.target.closest('button[data-combat-toggle]');
+    if (!toggleButton) {
+      return;
+    }
+
+    const state = store.getState();
+    const changed = combatSystem.setAutoEnabled(state, !state.combat.autoEnabled);
+    if (changed) {
+      gameLoop.markDirty();
+      setStatus(ui, state.combat.autoEnabled ? 'Auto-combat started.' : 'Auto-combat paused.', true);
       render(state, ui);
     }
   });
@@ -254,6 +269,31 @@ function wireUi(ui, store, gameLoop) {
     setStatus(ui, `${result.quest.title} launched.`, true);
     render(state, ui);
   });
+
+  ui.overviewPanel.addEventListener('click', async (event) => {
+    const resetButton = event.target.closest('button[data-new-game-reset]');
+    if (!resetButton) {
+      return;
+    }
+
+    const confirmed = window.confirm('Reset current save slot and start a new game? This cannot be undone.');
+    if (!confirmed) {
+      return;
+    }
+
+    await clearState();
+    const state = store.getState();
+    const freshState = createInitialState();
+    const normalized = normalizeState(freshState);
+
+    Object.keys(state).forEach((key) => delete state[key]);
+    Object.assign(state, normalized);
+    recruitmentSystem.initializeStarter(state);
+
+    gameLoop.markDirty();
+    setStatus(ui, 'Started a new game.', true);
+    render(state, ui);
+  });
 }
 
 function getUiRefs() {
@@ -270,6 +310,7 @@ function getUiRefs() {
     inventoryContent: document.getElementById('inventory-content'),
     craftingContent: document.getElementById('crafting-content'),
     combatPanel: document.querySelector('[data-panel="combat"]'),
+    overviewPanel: document.querySelector('[data-panel="overview"]'),
     recruitPanel: document.querySelector('[data-panel="recruit"]'),
     passivePanel: document.querySelector('[data-panel="passive"]'),
     partyPanel: document.querySelector('[data-panel="party"]'),

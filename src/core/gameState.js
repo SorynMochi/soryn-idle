@@ -3,6 +3,7 @@ import { PASSIVE_CATEGORY_ORDER, PASSIVE_RESOURCE_KEYS } from '../content/passiv
 import { COMBAT_AREAS, COMBAT_AREAS_BY_ID, COMBAT_TICK_MS } from '../content/combatAreas.js';
 import { STARTING_EQUIPMENT_INVENTORY } from '../content/equipment.js';
 import { INITIAL_INVENTORY_MATERIALS } from '../content/resources.js';
+import { INITIAL_SHARDS } from '../content/recruitmentBalance.js';
 
 export function createInitialState(now = Date.now()) {
   return {
@@ -18,8 +19,8 @@ export function createInitialState(now = Date.now()) {
       airshipAssignments: {}
     },
     currencies: {
-      gil: 0,
-      crystalShards: 30
+      gil: 100,
+      crystalShards: INITIAL_SHARDS
     },
     hero: {
       level: 1,
@@ -30,8 +31,8 @@ export function createInitialState(now = Date.now()) {
       xpToNext: xpToNextLevel(1)
     },
     economy: {
-      gold: 0,
-      shards: 30
+      gold: 100,
+      shards: INITIAL_SHARDS
     },
     upgrades: {
       attackRank: 0,
@@ -90,6 +91,7 @@ export function createInitialState(now = Date.now()) {
     },
     combat: {
       tickMs: COMBAT_TICK_MS,
+      autoEnabled: false,
       elapsedMs: 0,
       selectedAreaId: COMBAT_AREAS[0].id,
       streak: 0,
@@ -134,6 +136,7 @@ export function normalizeState(rawState) {
   }
 
   merged.combat.elapsedMs = Number.isFinite(merged.combat.elapsedMs) ? Math.max(0, merged.combat.elapsedMs) : 0;
+  merged.combat.autoEnabled = Boolean(merged.combat.autoEnabled);
   merged.combat.streak = Number.isFinite(merged.combat.streak) ? Math.max(0, Math.floor(merged.combat.streak)) : 0;
   merged.combat.totalVictories = Number.isFinite(merged.combat.totalVictories) ? Math.max(0, Math.floor(merged.combat.totalVictories)) : 0;
   merged.combat.streakExp = Number.isFinite(merged.combat.streakExp) ? Math.max(0, merged.combat.streakExp) : 0;
