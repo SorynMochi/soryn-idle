@@ -1,8 +1,13 @@
 import { COMBAT_AREAS, COMBAT_AREAS_BY_ID } from '../content/combatAreas.js';
+import { CHARACTER_TIERS } from '../content/characterTiers.js';
 import { EQUIPMENT_SLOT_ORDER } from '../content/equipment.js';
+import { PASSIVE_ACTION_CATEGORIES, PASSIVE_CATEGORY_ORDER } from '../content/passiveActions.js';
 import { AIRSHIP_BOARD_UNLOCK, AIRSHIP_QUESTS } from '../content/quests.js';
+import { RECRUITMENT_BALANCE } from '../content/recruitmentBalance.js';
 import { equipmentSystem } from '../systems/equipmentSystem.js';
 import { partySystem } from '../systems/partySystem.js';
+import { passiveSystem } from '../systems/passiveSystem.js';
+import { recruitmentSystem } from '../systems/recruitmentSystem.js';
 import { airshipQuestSystem } from '../systems/airshipQuestSystem.js';
 import { craftingSystem } from '../systems/craftingSystem.js';
 
@@ -28,7 +33,36 @@ export function render(state, ui) {
     row('Autosaves', state.runtime.autosaveCount)
   ].join('')}</div>`;
 
-  ui.partyContent.innerHTML = `<div class="grid-rows">${[
+  ui.partyContent.innerHTML = renderParty(state, activeMembers, partyTotals);
+  ui.recruitContent.innerHTML = renderRecruit(state);
+  ui.passiveContent.innerHTML = renderPassive(state);
+  ui.combatContent.innerHTML = renderCombat(state, selectedArea);
+
+  ui.questsContent.innerHTML = renderQuestBoard(state);
+  ui.inventoryContent.innerHTML = renderInventory(state);
+  ui.craftingContent.innerHTML = renderCrafting(state);
+
+  setActiveTab(state.ui.activeTab, ui);
+}
+
+function renderParty(state, activeMembers, partyTotals) {
+  const assigned = new Set(state.party.activeInstanceIds.filter(Boolean));
+  const availableMembers = state.roster.ownedInstanceIds
+    .map((instanceId) => partySystem.getRosterView(state, instanceId))
+    .filter((member) => member && !member.lockState?.locked);
+
+  const slotControls = state.party.activeInstanceIds.map((activeId, slotIndex) => {
+    const options = [
+      '<option value="">-- Open slot --</option>',
+      ...availableMembers
+        .filter((member) => member.instanceId === activeId || !assigned.has(member.instanceId))
+        .map((member) => `<option value="${member.instanceId}" ${member.instanceId === activeId ? 'selected' : ''}>${member.name} · ${member.instanceId}</option>`)
+    ].join('');
+
+    return `<label class="row-label">Slot ${slotIndex + 1}<select data-party-slot="${slotIndex}">${options}</select></label>`;
+  }).join('');
+
+  return `<div class="grid-rows">${[
     row('Active Party Size', `${activeMembers.length} / ${state.party.maxSlots}`),
     row('Combined HP', partyTotals.hp),
     row('Combined MP', partyTotals.mp),
@@ -37,26 +71,82 @@ export function render(state, ui) {
     row('Combined MAG', partyTotals.mag),
     row('Combined RES', partyTotals.res),
     row('Combined SPD', partyTotals.spd)
-  ].join('')}</div><ul class="roster-list">${activeMembers
+  ].join('')}</div>
+  <h3>Assignments</h3>
+  <div class="grid-rows">${slotControls}</div>
+  <h3>Active Members</h3>
+  <ul class="roster-list">${activeMembers
     .map((member) => `<li class="roster-row"><span>${member.name}</span><span class="muted">ATK ${member.finalStats.atk} · DEF ${member.finalStats.def} · SPD ${member.finalStats.spd} · Specialty ${member.passiveSpecialty.name}</span></li>`)
     .join('') || '<li class="roster-row">No active members assigned.</li>'}</ul>`;
+}
 
-  ui.recruitContent.innerHTML = '<p class="note">Recruitment UI is pending. Seeded characters are active for combat tuning.</p>';
+function renderRecruit(state) {
+  const probabilities = recruitmentSystem.getTierProbabilities()
+    .map(({ tierId, probability }) => {
+      const tier = CHARACTER_TIERS[tierId];
+      return `<li class="roster-row"><span>${tier?.label ?? tierId}</span><span class="muted">${(probability * 100).toFixed(1)}%</span></li>`;
+    })
+    .join('');
 
-  ui.passiveContent.innerHTML = `<div class="grid-rows">${[
+  const lastPull = state.gacha.lastPullResult
+    ? `<p class="note">Last recruit: ${state.gacha.lastPullResult.name} (${CHARACTER_TIERS[state.gacha.lastPullResult.tierId]?.label ?? state.gacha.lastPullResult.tierId}).</p>`
+    : '<p class="note">No pulls yet in this session.</p>';
+
+  return `
+    <div class="grid-rows">
+      ${row('Shard Cost', RECRUITMENT_BALANCE.shardCostPerPull)}
+      ${row('Available Shards', Math.floor(state.economy.shards))}
+    </div>
+    <button data-recruit-pull ${recruitmentSystem.canPull(state) ? '' : 'disabled'}>Perform 1 Pull</button>
+    ${lastPull}
+    <h3>Tier Rates</h3>
+    <ul class="roster-list">${probabilities}</ul>
+  `;
+}
+
+function renderPassive(state) {
+  const categories = passiveSystem.buildCategoryView(state);
+  const cards = PASSIVE_CATEGORY_ORDER
+    .map((categoryId) => {
+      const category = PASSIVE_ACTION_CATEGORIES[categoryId];
+      const view = categories.find((entry) => entry.id === categoryId);
+      if (!category || !view) return '';
+
+      const selectedText = view.selected ? 'Selected Route' : 'Select Route';
+      const selectDisabled = view.unlocked ? '' : 'disabled';
+      const unlockDisabled = !view.unlocked && state.economy.gold >= view.unlockCostGold ? '' : 'disabled';
+      const upgradeDisabled = view.nextUpgrade && state.economy.gold >= view.nextUpgrade.costGold ? '' : 'disabled';
+
+      return `
+        <article class="defeat-card">
+          <strong>${view.label}</strong>
+          <p class="note">${view.description}</p>
+          <div class="grid-rows">
+            ${row('Status', view.unlocked ? 'Unlocked' : `Locked · ${view.unlockCostGold} Gil`) }
+            ${row('Output / sec', `${view.output.resourcePerSecond.toFixed(2)} ${view.resourceLabel}`)}
+            ${row('Upgrade Level', `${view.upgradeLevel} / ${view.maxUpgradeLevel}`)}
+            ${row('Specialty Mult', `x${view.specialtyMultiplier.toFixed(2)}`)}
+          </div>
+          <div class="quest-assignment-grid">
+            <button data-passive-select="${view.id}" ${selectDisabled}>${selectedText}</button>
+            <button data-passive-unlock="${view.id}" ${view.unlocked ? 'disabled' : unlockDisabled}>Unlock</button>
+            <button data-passive-upgrade="${view.id}" ${!view.unlocked || !view.nextUpgrade ? 'disabled' : upgradeDisabled}>
+              ${view.nextUpgrade ? `Upgrade (${view.nextUpgrade.costGold} Gil)` : 'Maxed'}
+            </button>
+          </div>
+        </article>
+      `;
+    })
+    .join('');
+
+  return `<div class="grid-rows">${[
     row('Active Passive Route', state.passive.selectedCategoryId),
     row('Aether Ore', Math.floor(state.passive.resources.ore)),
     row('Moonwood Timber', Math.floor(state.passive.resources.timber)),
     row('Starbloom Herbs', Math.floor(state.passive.resources.herbs))
-  ].join('')}</div><p class="note">Passive generation runs continuously alongside combat.</p>`;
-
-  ui.combatContent.innerHTML = renderCombat(state, selectedArea);
-
-  ui.questsContent.innerHTML = renderQuestBoard(state);
-  ui.inventoryContent.innerHTML = renderInventory(state);
-  ui.craftingContent.innerHTML = renderCrafting(state);
-
-  setActiveTab(state.ui.activeTab, ui);
+  ].join('')}</div>
+  <h3>Routes</h3>
+  <div class="defeat-history">${cards}</div>`;
 }
 
 function renderQuestBoard(state) {

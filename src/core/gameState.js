@@ -154,6 +154,18 @@ export function normalizeState(rawState) {
 
   merged.ui.airshipAssignments = isObject(merged.ui.airshipAssignments) ? merged.ui.airshipAssignments : {};
 
+  const economyGold = Number(merged.economy.gold);
+  const economyShards = Number(merged.economy.shards);
+  const currencyGil = Number(merged.currencies.gil);
+  const currencyShards = Number(merged.currencies.crystalShards);
+
+  merged.economy.gold = Number.isFinite(economyGold)
+    ? Math.max(0, economyGold)
+    : Number.isFinite(currencyGil) ? Math.max(0, currencyGil) : 0;
+  merged.economy.shards = Number.isFinite(economyShards)
+    ? Math.max(0, economyShards)
+    : Number.isFinite(currencyShards) ? Math.max(0, currencyShards) : 0;
+
   merged.currencies.gil = Math.floor(merged.economy.gold);
   merged.currencies.crystalShards = Math.floor(merged.economy.shards);
   merged.inventory.equipment = normalizeEquipmentInventory(merged.inventory.equipment);

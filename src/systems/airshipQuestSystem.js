@@ -290,8 +290,6 @@ function rollRewards(state, rewardPool, rewardMultiplier) {
 
   state.economy.gold += gil;
   state.economy.shards += shards;
-  state.currencies.gil = Math.floor(state.economy.gold);
-  state.currencies.crystalShards = Math.floor(state.economy.shards);
 
   return { gil, shards };
 }

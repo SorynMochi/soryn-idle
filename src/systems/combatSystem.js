@@ -40,7 +40,6 @@ export const combatSystem = {
 
       state.hero.xp += result.exp;
       state.economy.gold += result.gil;
-      state.currencies.gil = Math.floor(state.economy.gold);
 
       state.combat.recentResults.unshift({
         ts: Date.now(),
