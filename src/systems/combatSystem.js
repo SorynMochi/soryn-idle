@@ -126,10 +126,11 @@ function generateMonster(state, area) {
 function resolveBattle(activeMembers, monster) {
   const party = activeMembers.reduce(
     (acc, member) => {
-      acc.hp += member.baseStats.hp;
-      acc.atk += member.baseStats.atk;
-      acc.def += member.baseStats.def;
-      acc.spd += member.baseStats.spd;
+      const stats = member.finalStats ?? member.baseStats;
+      acc.hp += stats.hp;
+      acc.atk += stats.atk;
+      acc.def += stats.def;
+      acc.spd += stats.spd;
       return acc;
     },
     { hp: 0, atk: 0, def: 0, spd: 0 }

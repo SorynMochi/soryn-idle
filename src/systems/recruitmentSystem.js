@@ -30,8 +30,6 @@ export const recruitmentSystem = {
       return { ok: false, reason: 'Not enough Crystal Shards.' };
     }
 
-    state.economy.shards -= RECRUITMENT_BALANCE.shardCostPerPull;
-
     const tierPick = pickWeighted(
       TIER_ORDER.map((tierId) => ({ tierId, weight: RECRUITMENT_BALANCE.tierWeights[tierId] })),
       nextRandomFloat(state)
@@ -43,6 +41,8 @@ export const recruitmentSystem = {
     if (!character) {
       return { ok: false, reason: 'No recruit available for rolled tier.' };
     }
+
+    state.economy.shards -= RECRUITMENT_BALANCE.shardCostPerPull;
 
     const instanceId = this.addCharacterInstance(state, character.id);
     const result = {
