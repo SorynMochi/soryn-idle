@@ -121,3 +121,24 @@ No code fixes were required from this regression check. Only this report was upd
 ### Verification
 - Re-ran static syntax check and a focused state-reference smoke script that simulates tab changes while the loop-adjacent state reference remains active.
 - Confirmed `ui.activeTab` persists as selected across repeated reads/renders.
+
+---
+
+## Addendum — 2026-04-20 (UI interaction reset hotfix)
+
+### Issue observed
+- Dropdown/select controls could close immediately while open during live gameplay.
+- Combat defeat-history `<details>` cards would collapse on periodic refresh.
+
+### Root cause summary
+- Loop rendering rebuilt panel DOM every simulation tick, which recreated interactive controls while the player was still focused on them.
+- `<details>` open state was not restored after full panel re-render.
+
+### Fix summary
+- Periodic render moved to the loop `onRender` callback.
+- Added deferred-render coordination that pauses non-forced renders during active form interaction and flushes once interaction ends.
+- Added stable defeat-card keys and restoration of previously open combat-history cards.
+
+### Verification
+- Opened all in-game select/dropdown controls while combat loop remained active; controls no longer close instantly.
+- Expanded defeat-history cards and confirmed they remain open across subsequent periodic renders.
