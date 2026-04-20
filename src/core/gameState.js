@@ -13,7 +13,8 @@ export function createInitialState(now = Date.now()) {
       rngSeed: now % (2 ** 32)
     },
     ui: {
-      activeTab: 'combat'
+      activeTab: 'combat',
+      airshipAssignments: {}
     },
     currencies: {
       gil: 0,
@@ -45,6 +46,14 @@ export function createInitialState(now = Date.now()) {
       minSize: 1,
       maxSlots: 4,
       activeInstanceIds: [null, null, null, null]
+    },
+    airshipQuests: {
+      unlocked: false,
+      unlockedQuestIds: [],
+      nextRunId: 1,
+      activeRunsById: {},
+      activeRunsByQuestId: {},
+      history: []
     },
     gacha: {
       lastPullResult: null
@@ -104,6 +113,18 @@ export function normalizeState(rawState) {
   merged.combat.recentResults = Array.isArray(merged.combat.recentResults) ? merged.combat.recentResults.slice(0, 30) : [];
   merged.combat.defeatHistory = Array.isArray(merged.combat.defeatHistory) ? merged.combat.defeatHistory.slice(0, 10) : [];
 
+  merged.airshipQuests.unlockedQuestIds = Array.isArray(merged.airshipQuests.unlockedQuestIds)
+    ? [...new Set(merged.airshipQuests.unlockedQuestIds.filter((id) => typeof id === 'string'))]
+    : [];
+  merged.airshipQuests.nextRunId = Number.isFinite(merged.airshipQuests.nextRunId)
+    ? Math.max(1, Math.floor(merged.airshipQuests.nextRunId))
+    : 1;
+  merged.airshipQuests.activeRunsById = isObject(merged.airshipQuests.activeRunsById) ? merged.airshipQuests.activeRunsById : {};
+  merged.airshipQuests.activeRunsByQuestId = isObject(merged.airshipQuests.activeRunsByQuestId) ? merged.airshipQuests.activeRunsByQuestId : {};
+  merged.airshipQuests.history = Array.isArray(merged.airshipQuests.history) ? merged.airshipQuests.history.slice(0, 30) : [];
+
+  merged.ui.airshipAssignments = isObject(merged.ui.airshipAssignments) ? merged.ui.airshipAssignments : {};
+
   merged.currencies.gil = Math.floor(merged.economy.gold);
   merged.currencies.crystalShards = Math.floor(merged.economy.shards);
   merged.inventory.equipment = normalizeEquipmentInventory(merged.inventory.equipment);
@@ -113,6 +134,7 @@ export function normalizeState(rawState) {
     if (!instance) continue;
 
     instance.equipmentSlots = normalizeEquipmentSlots(instance.equipmentSlots);
+    instance.lockState = normalizeLockState(instance.lockState);
   }
 
   return merged;
@@ -168,5 +190,19 @@ function normalizeEquipmentSlots(rawSlots) {
     weapon: typeof rawSlots?.weapon === 'string' ? rawSlots.weapon : null,
     armor: typeof rawSlots?.armor === 'string' ? rawSlots.armor : null,
     accessory: typeof rawSlots?.accessory === 'string' ? rawSlots.accessory : null
+  };
+}
+
+function normalizeLockState(rawLockState) {
+  if (!isObject(rawLockState) || !rawLockState.locked) {
+    return null;
+  }
+
+  return {
+    locked: true,
+    system: typeof rawLockState.system === 'string' ? rawLockState.system : 'unknown',
+    referenceId: typeof rawLockState.referenceId === 'string' ? rawLockState.referenceId : '',
+    reason: typeof rawLockState.reason === 'string' ? rawLockState.reason : 'Unavailable',
+    untilTs: Number.isFinite(rawLockState.untilTs) ? rawLockState.untilTs : null
   };
 }

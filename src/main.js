@@ -9,6 +9,7 @@ import { passiveSystem } from './systems/passiveSystem.js';
 import { progressionSystem } from './systems/progressionSystem.js';
 import { recruitmentSystem } from './systems/recruitmentSystem.js';
 import { equipmentSystem } from './systems/equipmentSystem.js';
+import { airshipQuestSystem } from './systems/airshipQuestSystem.js';
 import { render, setStatus } from './ui/render.js';
 
 async function bootstrap() {
@@ -25,6 +26,7 @@ async function bootstrap() {
   systemManager.register(combatSystem);
   systemManager.register(passiveSystem);
   systemManager.register(progressionSystem);
+  systemManager.register(airshipQuestSystem);
 
   const gameLoop = createGameLoop({
     state,
@@ -107,6 +109,51 @@ function wireUi(ui, store, gameLoop) {
     setStatus(ui, result.reason ?? 'Unable to change equipment.');
     render(state, ui);
   });
+
+  ui.questsPanel.addEventListener('change', (event) => {
+    const select = event.target.closest('select[data-quest-assignment][data-assignment-slot]');
+    if (!select) {
+      return;
+    }
+
+    const questId = select.dataset.questAssignment;
+    const slot = Number.parseInt(select.dataset.assignmentSlot ?? '-1', 10);
+    if (!questId || slot < 0) {
+      return;
+    }
+
+    const state = store.getState();
+    if (!Array.isArray(state.ui.airshipAssignments[questId])) {
+      state.ui.airshipAssignments[questId] = [];
+    }
+
+    state.ui.airshipAssignments[questId][slot] = select.value;
+    gameLoop.markDirty();
+    render(state, ui);
+  });
+
+  ui.questsPanel.addEventListener('click', (event) => {
+    const launchButton = event.target.closest('button[data-quest-launch]');
+    if (!launchButton) {
+      return;
+    }
+
+    const questId = launchButton.dataset.questLaunch;
+    const state = store.getState();
+    const assignments = state.ui.airshipAssignments[questId] ?? [];
+    const result = airshipQuestSystem.startQuest(state, questId, assignments);
+
+    if (!result.ok) {
+      setStatus(ui, result.reason ?? 'Unable to launch dispatch.');
+      render(state, ui);
+      return;
+    }
+
+    state.ui.airshipAssignments[questId] = [];
+    gameLoop.markDirty();
+    setStatus(ui, `${result.quest.title} launched.`, true);
+    render(state, ui);
+  });
 }
 
 function getUiRefs() {
@@ -122,6 +169,7 @@ function getUiRefs() {
     questsContent: document.getElementById('quests-content'),
     inventoryContent: document.getElementById('inventory-content'),
     combatPanel: document.querySelector('[data-panel="combat"]'),
+    questsPanel: document.querySelector('[data-panel="quests"]'),
     inventoryPanel: document.querySelector('[data-panel="inventory"]'),
     statusLine: document.getElementById('status-line')
   };

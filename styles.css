@@ -205,3 +205,27 @@ select {
 .footer {
   font-size: 0.93rem;
 }
+
+.quest-card .row {
+  border-bottom-color: rgba(144, 158, 221, 0.14);
+}
+
+.quest-assignment-grid {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.quest-launch {
+  width: 100%;
+  margin-top: 0.35rem;
+  border: 1px solid var(--accent-soft);
+  background: #273577;
+  color: var(--text);
+  border-radius: 8px;
+  padding: 0.45rem 0.6rem;
+  cursor: pointer;
+}
+
+.quest-launch:hover {
+  border-color: var(--accent);
+}

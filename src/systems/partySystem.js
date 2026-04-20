@@ -16,7 +16,7 @@ export const partySystem = {
     }
 
     const instance = state.roster.byInstanceId[instanceId];
-    if (!instance) {
+    if (!instance || instance.lockState?.locked) {
       return false;
     }
 
@@ -44,7 +44,7 @@ export const partySystem = {
     return state.party.activeInstanceIds
       .filter(Boolean)
       .map((instanceId) => getRosterView(state, instanceId))
-      .filter(Boolean);
+      .filter((member) => member && !member.lockState?.locked);
   },
   getBenchMembers(state) {
     const active = new Set(state.party.activeInstanceIds.filter(Boolean));
@@ -76,6 +76,11 @@ export const partySystem = {
         return null;
       }
 
+      const instance = state.roster.byInstanceId[instanceId];
+      if (instance.lockState?.locked) {
+        return null;
+      }
+
       seen.add(instanceId);
       return instanceId;
     });
@@ -83,6 +88,9 @@ export const partySystem = {
     while (party.activeInstanceIds.length < party.maxSlots) {
       party.activeInstanceIds.push(null);
     }
+  },
+  getRosterView(state, instanceId) {
+    return getRosterView(state, instanceId);
   }
 };
 
@@ -110,6 +118,7 @@ function getRosterView(state, instanceId) {
     finalStats: equipmentSystem.getFinalStats(character.baseStats, equipmentBonuses),
     passiveSpecialty: character.passiveSpecialty,
     passiveSpecialtyHooks: getSpecialtyHookById(character.passiveSpecialty?.id),
-    equipmentHook: character.equipmentHook
+    equipmentHook: character.equipmentHook,
+    lockState: instance.lockState ?? null
   };
 }

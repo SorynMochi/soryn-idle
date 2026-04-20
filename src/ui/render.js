@@ -1,7 +1,9 @@
 import { COMBAT_AREAS, COMBAT_AREAS_BY_ID } from '../content/combatAreas.js';
 import { EQUIPMENT_SLOT_ORDER } from '../content/equipment.js';
+import { AIRSHIP_BOARD_UNLOCK, AIRSHIP_QUESTS } from '../content/quests.js';
 import { equipmentSystem } from '../systems/equipmentSystem.js';
 import { partySystem } from '../systems/partySystem.js';
+import { airshipQuestSystem } from '../systems/airshipQuestSystem.js';
 
 function row(label, value) {
   return `<div class="row"><span class="row-label">${label}</span><strong>${value}</strong></div>`;
@@ -49,10 +51,180 @@ export function render(state, ui) {
 
   ui.combatContent.innerHTML = renderCombat(state, selectedArea);
 
-  ui.questsContent.innerHTML = '<p class="note">Quest integration is planned after combat and passive loops stabilize.</p>';
+  ui.questsContent.innerHTML = renderQuestBoard(state);
   ui.inventoryContent.innerHTML = renderInventory(state);
 
   setActiveTab(state.ui.activeTab, ui);
+}
+
+function renderQuestBoard(state) {
+  if (!state.airshipQuests.unlocked) {
+    const unlockInfo = AIRSHIP_BOARD_UNLOCK.params;
+    return `
+      <div class="grid-rows">
+        ${row('Airship Board', 'Locked')}
+        ${row('Unlock Requirement', `Hero Lv.${unlockInfo.heroLevel} · ${unlockInfo.totalVictories} total victories`)}
+        ${row('Current Progress', `Hero Lv.${state.hero.level} · ${state.combat.totalVictories} victories`)}
+      </div>
+      <p class="note">Continue progression to open timed airship dispatch contracts.</p>
+    `;
+  }
+
+  const activeRuns = airshipQuestSystem.getActiveRuns(state)
+    .map((run) => renderActiveRun(state, run))
+    .join('');
+
+  const availableQuestCards = AIRSHIP_QUESTS.map((quest) => renderQuestCard(state, quest)).join('');
+
+  const historyRows = airshipQuestSystem.getHistory(state)
+    .map((entry) => renderQuestHistoryEntry(entry))
+    .join('');
+
+  return `
+    <div class="grid-rows">
+      ${row('Board Status', 'Operational')}
+      ${row('Unlocked Routes', `${state.airshipQuests.unlockedQuestIds.length} / ${AIRSHIP_QUESTS.length}`)}
+      ${row('Active Dispatches', Object.keys(state.airshipQuests.activeRunsById).length)}
+    </div>
+
+    <h3>In Progress</h3>
+    <div class="defeat-history">${activeRuns || '<p class="note">No active dispatches.</p>'}</div>
+
+    <h3>Dispatch Board</h3>
+    <div class="defeat-history">${availableQuestCards}</div>
+
+    <h3>History</h3>
+    <ul class="roster-list">${historyRows || '<li class="roster-row">No dispatch history yet.</li>'}</ul>
+  `;
+}
+
+function renderQuestCard(state, quest) {
+  const status = airshipQuestSystem.getQuestStatus(state, quest);
+  const assignments = getAssignmentSelection(state, quest.id, quest.maxAssignees);
+  const selectedIds = assignments.filter(Boolean);
+  const chance = airshipQuestSystem.calculateSuccessChance(state, quest.id, selectedIds);
+
+  const requirementRows = Object.entries(quest.statRequirements)
+    .map(([statKey, value]) => `${statKey.toUpperCase()} ${value}`)
+    .join(' · ');
+
+  if (status === 'locked') {
+    const unlockText = renderUnlockHint(state, quest.unlock?.params);
+    return `
+      <article class="defeat-card">
+        <strong>${quest.title}</strong>
+        <p class="note">${quest.description}</p>
+        <p class="muted">Requirements: ${requirementRows}</p>
+        <p class="muted">Unlock: ${unlockText}</p>
+      </article>
+    `;
+  }
+
+  if (status === 'in_progress') {
+    return `
+      <article class="defeat-card">
+        <strong>${quest.title}</strong>
+        <p class="note">Dispatch already in progress.</p>
+      </article>
+    `;
+  }
+
+  return `
+    <article class="defeat-card quest-card">
+      <strong>${quest.title}</strong>
+      <p class="note">${quest.description}</p>
+      <div class="grid-rows">
+        ${row('Duration', formatDuration(quest.durationMs))}
+        ${row('Stat Thresholds', requirementRows)}
+        ${row('Projected Success', `${Math.round(chance * 100)}%`)}
+      </div>
+      <div class="quest-assignment-grid">
+        ${renderAssignmentSelectors(state, quest, assignments)}
+      </div>
+      <button class="quest-launch" data-quest-launch="${quest.id}">Launch Dispatch</button>
+    </article>
+  `;
+}
+
+function renderAssignmentSelectors(state, quest, assignments) {
+  const options = getAssignableMembers(state);
+
+  return Array.from({ length: quest.maxAssignees }).map((_, index) => {
+    const selectedId = assignments[index] ?? '';
+    const optionTags = [
+      '<option value="">-- Open slot --</option>',
+      ...options.map((member) => `<option value="${member.instanceId}" ${member.instanceId === selectedId ? 'selected' : ''}>${member.name} · ${formatQuestStats(member.finalStats)}</option>`)
+    ].join('');
+
+    return `<label class="row-label">Crew Slot ${index + 1}<select data-quest-assignment="${quest.id}" data-assignment-slot="${index}">${optionTags}</select></label>`;
+  }).join('');
+}
+
+function renderActiveRun(state, run) {
+  const memberNames = run.assignedInstanceIds
+    .map((instanceId) => partySystem.getRosterView(state, instanceId)?.name)
+    .filter(Boolean)
+    .join(', ');
+
+  return `
+    <article class="defeat-card">
+      <strong>${run.quest.title}</strong>
+      <p class="muted">Crew: ${memberNames || 'Unknown'}</p>
+      <div class="grid-rows">
+        ${row('Projected Success', `${Math.round(run.successChance * 100)}%`)}
+        ${row('Time Remaining', formatDuration(run.remainingMs))}
+        ${row('Ends At', new Date(run.endsAt).toLocaleTimeString())}
+      </div>
+    </article>
+  `;
+}
+
+function renderQuestHistoryEntry(entry) {
+  const outcome = entry.success ? 'Success' : 'Failure';
+  const memberNames = entry.assignedSnapshot?.map((member) => member.name).join(', ') ?? 'Unknown';
+
+  return `
+    <li class="roster-row">
+      <span>${entry.questId} · ${outcome}<br /><span class="muted">Crew: ${memberNames}</span></span>
+      <span class="muted">${entry.rewards.gil} Gil · ${entry.rewards.shards} Shards</span>
+    </li>
+  `;
+}
+
+function renderUnlockHint(state, params = {}) {
+  if (!params.heroLevel && !params.totalVictories) {
+    return 'Progress deeper through the campaign.';
+  }
+
+  return `Hero Lv.${params.heroLevel ?? state.hero.level} (${state.hero.level}/${params.heroLevel ?? state.hero.level}) · Victories ${state.combat.totalVictories}/${params.totalVictories ?? state.combat.totalVictories}`;
+}
+
+function getAssignmentSelection(state, questId, maxAssignees) {
+  const stored = state.ui.airshipAssignments?.[questId];
+  const normalized = Array.isArray(stored) ? stored.slice(0, maxAssignees) : [];
+
+  while (normalized.length < maxAssignees) {
+    normalized.push('');
+  }
+
+  return normalized;
+}
+
+function getAssignableMembers(state) {
+  return state.roster.ownedInstanceIds
+    .map((instanceId) => partySystem.getRosterView(state, instanceId))
+    .filter((member) => member && !member.lockState?.locked);
+}
+
+function formatQuestStats(stats) {
+  return `ATK ${stats.atk} DEF ${stats.def} MAG ${stats.mag} RES ${stats.res} SPD ${stats.spd}`;
+}
+
+function formatDuration(durationMs) {
+  const totalSeconds = Math.max(0, Math.ceil(durationMs / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${String(seconds).padStart(2, '0')}`;
 }
 
 function renderInventory(state) {
