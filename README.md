@@ -28,7 +28,17 @@ This milestone delivers the app shell and persistence/state scaffolding, intenti
 
 ## Run
 
-Open `index.html` in a modern browser.
+Serve the repository through a local web server, then open that URL in a modern browser.
+
+Example:
+
+```bash
+python3 -m http.server 4173
+```
+
+Then open `http://localhost:4173`.
+
+> Note: opening `index.html` directly via `file://` can prevent module boot in some browsers and leave the UI at the boot message.
 
 ## Architecture notes
 

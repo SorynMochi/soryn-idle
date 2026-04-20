@@ -4,6 +4,21 @@ This update continues from the previous PR and addresses the remaining unresolve
 
 ## Resolved in this pass
 
+## Runtime boot reliability
+
+### 0) App appears stuck on initial “Booting shell...” message
+- **How reproduced:** Opened the game entrypoint over `file://` in a browser and observed the footer never moved past the initial boot status.
+- **Root cause:** ES module boot (`src/main.js`) may be blocked by browser security when loaded from `file://`, which prevents bootstrap from running at all. Additionally, fatal bootstrap errors only reached console output and did not update the on-screen status line.
+- **Exact change made:**
+  - Added a pre-module runtime protocol guard in `index.html` that explains when boot is blocked by `file://` usage.
+  - Hardened the bootstrap error handler in `src/main.js` to report fatal initialization errors directly in the status line.
+  - Updated README run instructions to use a local HTTP server instead of opening `index.html` directly.
+- **How to verify now:**
+  1. Open `index.html` directly with a `file://` URL.
+  2. Confirm footer shows an explicit “run from local web server” message.
+  3. Serve via `python3 -m http.server 4173` and open `http://localhost:4173`.
+  4. Confirm game progresses past boot messaging.
+
 ## High severity
 
 ### 1) Duplicate currency state desync (`economy` vs `currencies`)

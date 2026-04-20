@@ -321,6 +321,11 @@ function getUiRefs() {
 }
 
 bootstrap().catch((error) => {
-  // eslint-disable-next-line no-console
+  const statusLine = document.getElementById('status-line');
+  if (statusLine) {
+    statusLine.classList.remove('good');
+    statusLine.textContent = `Boot failed: ${error?.message ?? 'Unknown error'}. Check the browser console for details.`;
+  }
+
   console.error(error);
 });
