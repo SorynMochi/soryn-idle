@@ -135,3 +135,52 @@ This update continues from the previous PR and addresses the remaining unresolve
 ## Still remaining
 
 - No additional unresolved bugs from the April 20, 2026 audit remain open after this pass.
+
+## Addendum — April 20, 2026 (playtest fixes: render stability, inventory restructure, progression, combat scaling)
+
+### 10) UI elements flickered/reset during normal play (text selection dropped, controls blinked, scroll position jumped)
+- **How reproduced:** With periodic rendering active, selected text in any panel and watched selection clear immediately; scrolled long panels and saw jumpy behavior on re-render.
+- **Root cause:** Non-forced loop rendering continued to rebuild panel DOM while text selection and scroll interactions were in progress.
+- **Exact change made:**
+  - Expanded render-interaction detection in `src/main.js` to treat active text selections as an in-progress interaction.
+  - Added per-panel scroll position preservation across each render pass so long lists do not jump.
+- **How to verify now:**
+  1. Select text in Overview/Combat logs and wait through multiple render intervals.
+  2. Confirm the selection remains until manually cleared.
+  3. Scroll Inventory/Quest panels and confirm scroll does not reset from background renders.
+
+### 11) Inventory equip dropdown defaulted to "Unequip" and prevented actual unequip flow
+- **How reproduced:** Equip an item, reopen the dropdown, and observe the control often defaulting to `Unequip` despite gear still being equipped; selecting `Unequip` sometimes did nothing.
+- **Root cause:** Equipped items were filtered out of options when inventory count reached zero, leaving no selected option and causing the browser to auto-select the first (`Unequip`) option without a state change event.
+- **Exact change made:**
+  - Updated `equipmentSystem.getEquipOptions` to include the currently equipped item even if inventory count is zero.
+  - Updated inventory slot rendering to explicitly mark the empty option selected only when the slot is actually empty.
+  - Restructured Inventory panel sections into clearer **Armory Stock** and **Loadout Management** blocks, including per-slot equipped-name visibility.
+- **How to verify now:**
+  1. Equip a weapon from quantity `1`.
+  2. Re-open the same slot and confirm the equipped weapon remains selected.
+  3. Choose `Unequip` and confirm item returns to inventory and slot shows `Empty`.
+
+### 12) Character levels/stats did not progress despite EXP gains
+- **How reproduced:** Win repeated combats and inspect roster; no visible unit levels and no growth in combat stats.
+- **Root cause:** Combat rewards were only granted to `hero.xp`; recruited roster instances had level/exp fields but no gain path or level-up processing, and combat/party views did not expose progression fields.
+- **Exact change made:**
+  - Combat victories now grant EXP to active party instances.
+  - Added roster leveling in `progressionSystem` with per-level EXP thresholds.
+  - Added save normalization defaults for roster `level`, `exp`, and `expToNext`.
+  - Party and Inventory views now display character level + EXP, and party stat computation now uses level-scaled base stats before equipment bonuses.
+- **How to verify now:**
+  1. Run auto-combat for several wins.
+  2. Open Party/Inventory and confirm active units gain EXP and level.
+  3. Confirm displayed ATK/DEF/etc. increase over level progression.
+
+### 13) Monster difficulty stopped scaling after soft cap
+- **How reproduced:** Push streak past area soft cap and observe monster level/stats flatten at cap.
+- **Root cause:** One capped streak value was reused for both rewards and monster stat scaling.
+- **Exact change made:** Split scaling into two tracks:
+  - **Monster power/level:** uses uncapped streak (continues rising).
+  - **EXP/Gil rewards:** remains capped at area soft cap.
+- **How to verify now:**
+  1. Push a combat streak above area soft cap.
+  2. Confirm monster level continues to increase each battle.
+  3. Confirm EXP/Gil values stop increasing once cap is reached.

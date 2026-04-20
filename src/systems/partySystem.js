@@ -106,19 +106,48 @@ function getRosterView(state, instanceId) {
   }
 
   const equipmentBonuses = equipmentSystem.getEquipmentBonus(state, instanceId);
+  const level = Number.isFinite(instance.level) ? Math.max(1, Math.floor(instance.level)) : 1;
+  const exp = Number.isFinite(instance.exp) ? Math.max(0, instance.exp) : 0;
+  const expToNext = Number.isFinite(instance.expToNext) ? Math.max(1, Math.floor(instance.expToNext)) : 1;
+  const scaledBaseStats = scaleStatsForLevel(character.baseStats, level);
 
   return {
     instanceId,
     characterId: instance.characterId,
     name: character.name,
     tierId: character.tierId,
-    baseStats: character.baseStats,
+    level,
+    exp,
+    expToNext,
+    baseStats: scaledBaseStats,
     equipmentSlots: instance.equipmentSlots,
     equipmentBonuses,
-    finalStats: equipmentSystem.getFinalStats(character.baseStats, equipmentBonuses),
+    finalStats: equipmentSystem.getFinalStats(scaledBaseStats, equipmentBonuses),
     passiveSpecialty: character.passiveSpecialty,
     passiveSpecialtyHooks: getSpecialtyHookById(character.passiveSpecialty?.id),
     equipmentHook: character.equipmentHook,
     lockState: instance.lockState ?? null
   };
+}
+
+function scaleStatsForLevel(baseStats, level) {
+  const growth = {
+    hp: 0.065,
+    mp: 0.05,
+    atk: 0.04,
+    def: 0.035,
+    mag: 0.04,
+    res: 0.035,
+    spd: 0.02
+  };
+  const levelOffset = Math.max(0, level - 1);
+
+  return Object.fromEntries(
+    MAIN_STATS.map((stat) => {
+      const baseValue = Number(baseStats?.[stat] ?? 0);
+      const perLevelGrowth = growth[stat] ?? 0.03;
+      const value = Math.floor(baseValue * (1 + perLevelGrowth * levelOffset));
+      return [stat, Math.max(1, value)];
+    })
+  );
 }
