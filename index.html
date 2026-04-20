@@ -1,17 +1,49 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Soryn Idle</title>
-  <link rel="stylesheet" href="style.css" />
-</head>
-<body>
-  <main>
-    <h1>Soryn Idle</h1>
-    <p>Project scaffold initialized.</p>
-  </main>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Idle RPG Foundation</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app">
+      <header>
+        <h1>Idle RPG Foundation</h1>
+        <p class="subtitle">Auto-progression demo (no clicker core loop)</p>
+      </header>
 
-  <script type="module" src="app.js"></script>
-</body>
+      <section class="grid">
+        <article class="card">
+          <h2>Hero</h2>
+          <div id="hero-stats"></div>
+        </article>
+
+        <article class="card">
+          <h2>World</h2>
+          <div id="world-stats"></div>
+        </article>
+
+        <article class="card">
+          <h2>Economy</h2>
+          <div id="economy-stats"></div>
+        </article>
+
+        <article class="card">
+          <h2>Upgrades</h2>
+          <div id="upgrade-stats"></div>
+          <button id="buy-attack">Buy Attack Upgrade (50g)</button>
+          <button id="buy-vitality">Buy Vitality Upgrade (50g)</button>
+        </article>
+      </section>
+
+      <section class="card log-card">
+        <h2>Status</h2>
+        <p id="status">Booting...</p>
+        <p id="offline-summary"></p>
+      </section>
+    </main>
+
+    <script type="module" src="src/main.js"></script>
+  </body>
 </html>
