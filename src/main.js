@@ -9,6 +9,7 @@ import { partySystem } from './systems/partySystem.js';
 import { progressionSystem } from './systems/progressionSystem.js';
 import { recruitmentSystem } from './systems/recruitmentSystem.js';
 import { upgradeSystem } from './systems/upgradeSystem.js';
+import { passiveSystem } from './systems/passiveSystem.js';
 import { render, setOfflineSummary, setStatus } from './ui/render.js';
 
 async function bootstrap() {
@@ -31,7 +32,7 @@ async function bootstrap() {
   if (offlineResult.ms > 0) {
     setOfflineSummary(
       ui,
-      `Offline progress: ${Math.floor(offlineResult.ms / 1000)}s simulated. +${offlineResult.gold} gold, +${offlineResult.xp} xp`
+      `Offline progress: ${Math.floor(offlineResult.ms / 1000)}s simulated. +${offlineResult.gold} gold, +${offlineResult.xp} xp, +${offlineResult.passive} passive resources`
     );
   } else {
     setOfflineSummary(ui, 'Offline progress: none');
@@ -40,6 +41,7 @@ async function bootstrap() {
   const systemManager = createSystemManager();
   systemManager.register(combatSystem);
   systemManager.register(progressionSystem);
+  systemManager.register(passiveSystem);
   systemManager.register(upgradeSystem);
   systemManager.register(recruitmentSystem);
   systemManager.register(partySystem);
@@ -85,6 +87,18 @@ async function bootstrap() {
   wireLifecyclePersistence(store);
 }
 
+  if (steps <= 0) {
+    return { ms: 0, gold: 0, xp: 0, passive: 0 };
+  }
+
+  const beforeGold = state.economy.gold;
+  const beforeXp = state.hero.xp;
+  const beforePassive = Object.values(state.passive.resources).reduce((total, value) => total + value, 0);
+
+  const systemManager = createSystemManager();
+  systemManager.register(combatSystem);
+  systemManager.register(progressionSystem);
+  systemManager.register(passiveSystem);
 function startAutosave(store, ui) {
   setInterval(async () => {
     const now = Date.now();
@@ -124,6 +138,13 @@ function wireLifecyclePersistence(store) {
     saveState(store.getState());
   });
 
+  return {
+    ms: steps * stepMs,
+    gold: Math.floor(state.economy.gold - beforeGold),
+    xp: Math.floor(state.hero.xp - beforeXp),
+    passive: Math.floor(Object.values(state.passive.resources).reduce((total, value) => total + value, 0) - beforePassive)
+  };
+}
   window.addEventListener('beforeunload', () => {
     store.update((current) => ({
       ...current,
@@ -162,6 +183,46 @@ function wireTabs(ui, store) {
 
     gameLoop.markDirty();
     setStatus(ui, `Recruited ${result.name} (${result.tierId.toUpperCase()}).`);
+    render(state, ui);
+  });
+
+  ui.passivePanel.addEventListener('click', (event) => {
+    const button = event.target.closest('button[data-passive-action]');
+    if (!button) {
+      return;
+    }
+
+    const action = button.dataset.passiveAction;
+    const categoryId = button.dataset.category;
+
+    if (!categoryId) {
+      return;
+    }
+
+    if (action === 'select') {
+      const selected = passiveSystem.selectCategory(state, categoryId);
+      if (selected) {
+        gameLoop.markDirty();
+        setStatus(ui, 'Passive action selected.');
+      }
+    }
+
+    if (action === 'unlock') {
+      const unlocked = passiveSystem.tryUnlockCategory(state, categoryId);
+      if (unlocked) {
+        gameLoop.markDirty();
+        setStatus(ui, 'Unlocked passive action.');
+      }
+    }
+
+    if (action === 'upgrade') {
+      const upgraded = passiveSystem.tryUpgradeCategory(state, categoryId);
+      if (upgraded) {
+        gameLoop.markDirty();
+        setStatus(ui, 'Passive action upgraded.');
+      }
+    }
+
     render(state, ui);
   });
 
@@ -219,6 +280,9 @@ function getUiRefs() {
     partyActive: document.getElementById('party-active'),
     partyBench: document.getElementById('party-bench'),
     partyPanel: document.getElementById('party-panel'),
+    passivePanel: document.getElementById('passive-panel'),
+    passiveStats: document.getElementById('passive-stats'),
+    passiveCategories: document.getElementById('passive-categories'),
     status: document.getElementById('status'),
     offlineSummary: document.getElementById('offline-summary'),
     buyAttackButton: document.getElementById('buy-attack'),

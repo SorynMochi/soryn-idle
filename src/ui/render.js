@@ -11,6 +11,7 @@ function renderRoster(roster) {
 import { CHARACTER_TIERS } from '../content/characterTiers.js';
 import { RECRUITMENT_BALANCE } from '../content/recruitmentBalance.js';
 import { partySystem } from '../systems/partySystem.js';
+import { passiveSystem } from '../systems/passiveSystem.js';
 import { recruitmentSystem } from '../systems/recruitmentSystem.js';
 
 function renderRows(entries) {
@@ -114,6 +115,44 @@ export function render(state, ui) {
     .map((entry) => {
       const tier = CHARACTER_TIERS[entry.tierId];
       return `<div class="stat-row"><span>${tier.label}</span><strong>${toPercent(entry.probability)}</strong></div>`;
+    })
+    .join('');
+
+  const passiveCategories = passiveSystem.buildCategoryView(state);
+  const totalPassiveResources = Object.values(state.passive.resources).reduce((total, value) => total + value, 0);
+
+  ui.passiveStats.innerHTML = renderRows([
+    ['Selected', state.passive.selectedCategoryId],
+    ['Total Stockpile', Math.floor(totalPassiveResources)],
+    ['Aether Ore', Math.floor(state.passive.resources.ore)],
+    ['Moonwood Timber', Math.floor(state.passive.resources.timber)],
+    ['Starbloom Herbs', Math.floor(state.passive.resources.herbs)],
+    ['Arcane Insight', Math.floor(state.passive.resources.insight)],
+    ['Battle Mastery', Math.floor(state.passive.resources.mastery)]
+  ]);
+
+  ui.passiveCategories.innerHTML = passiveCategories
+    .map((category) => {
+      if (!category.unlocked) {
+        return `<li class="roster-row passive-row"><div><strong>${category.label}</strong><div class="muted">${category.description}</div><div class="muted">Unlock Cost: ${category.unlockCostGold}g</div></div><button data-passive-action="unlock" data-category="${category.id}">Unlock</button></li>`;
+      }
+
+      const buttonRow = category.selected
+        ? '<span class="muted">Active</span>'
+        : `<button data-passive-action="select" data-category="${category.id}">Set Active</button>`;
+
+      const upgradeButton = category.nextUpgrade
+        ? `<button data-passive-action="upgrade" data-category="${category.id}">Upgrade (${category.nextUpgrade.costGold}g)</button>`
+        : '<span class="muted">Maxed</span>';
+
+      const bonusText = category.specialtyMultiplier > 1 ? `Specialty Bonus: x${category.specialtyMultiplier.toFixed(2)}` : 'Specialty Bonus: none';
+      const benefitRows = [
+        `<div class=\"muted\">${category.resourceLabel}: ${category.output.resourcePerSecond.toFixed(2)}/s</div>`,
+        category.output.heroXpPerSecond > 0 ? `<div class=\"muted\">Hero XP: ${category.output.heroXpPerSecond.toFixed(2)}/s</div>` : '',
+        category.output.heroAttackPerSecond > 0 ? `<div class=\"muted\">Hero ATK: ${category.output.heroAttackPerSecond.toFixed(3)}/s</div>` : ''
+      ].join('');
+
+      return `<li class="roster-row passive-row"><div><strong>${category.label} · Lv ${category.upgradeLevel}</strong>${benefitRows}<div class="muted">${bonusText}</div><div class="muted">Total Generated: ${Math.floor(category.totalGenerated)}</div><div class="muted">${category.description}</div></div><div class="button-stack">${buttonRow}${upgradeButton}</div></li>`;
     })
     .join('');
 

@@ -1,4 +1,5 @@
 import { INITIAL_SHARDS } from '../content/recruitmentBalance.js';
+import { PASSIVE_CATEGORY_ORDER, PASSIVE_RESOURCE_KEYS } from '../content/passiveActions.js';
 import { GAME_CONFIG } from '../config/constants.js';
 import { CHARACTER_ROSTER, RECRUIT_CONFIG } from '../content/roster.js';
 import { SAMPLE_QUESTS } from '../content/quests.js';
@@ -63,6 +64,22 @@ export function createInitialState(now = Date.now()) {
       ],
       equipment: []
     },
+
+    passive: {
+      selectedCategoryId: PASSIVE_CATEGORY_ORDER[0],
+      resources: Object.fromEntries(PASSIVE_RESOURCE_KEYS.map((key) => [key, 0])),
+      categories: Object.fromEntries(
+        PASSIVE_CATEGORY_ORDER.map((categoryId, index) => [
+          categoryId,
+          {
+            unlocked: index === 0,
+            upgradeLevel: 0,
+            totalGenerated: 0,
+            elapsedMs: 0
+          }
+        ])
+      )
+    },
     runtime: {
       totalPlayTimeMs: 0,
       autosaveCount: 0,
@@ -101,6 +118,27 @@ export function normalizeState(rawState) {
   merged.roster.ownedInstanceIds = merged.roster.ownedInstanceIds.filter((instanceId) =>
     Boolean(merged.roster.byInstanceId[instanceId])
   );
+
+
+  for (const resourceKey of PASSIVE_RESOURCE_KEYS) {
+    if (!Number.isFinite(merged.passive.resources[resourceKey])) {
+      merged.passive.resources[resourceKey] = 0;
+    }
+  }
+
+  for (const [index, categoryId] of PASSIVE_CATEGORY_ORDER.entries()) {
+    const categoryState = merged.passive.categories[categoryId] ?? {};
+    merged.passive.categories[categoryId] = {
+      unlocked: Boolean(categoryState.unlocked) || index === 0,
+      upgradeLevel: Number.isFinite(categoryState.upgradeLevel) ? Math.max(0, Math.floor(categoryState.upgradeLevel)) : 0,
+      totalGenerated: Number.isFinite(categoryState.totalGenerated) ? Math.max(0, categoryState.totalGenerated) : 0,
+      elapsedMs: Number.isFinite(categoryState.elapsedMs) ? Math.max(0, categoryState.elapsedMs) : 0
+    };
+  }
+
+  if (!PASSIVE_CATEGORY_ORDER.includes(merged.passive.selectedCategoryId) || !merged.passive.categories[merged.passive.selectedCategoryId]?.unlocked) {
+    merged.passive.selectedCategoryId = PASSIVE_CATEGORY_ORDER.find((categoryId) => merged.passive.categories[categoryId]?.unlocked) ?? PASSIVE_CATEGORY_ORDER[0];
+  }
 
   partySystem.normalize(merged);
 
