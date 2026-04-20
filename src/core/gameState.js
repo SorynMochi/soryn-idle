@@ -114,6 +114,18 @@ export function normalizeState(rawState) {
   const base = createInitialState(rawState?.meta?.createdAt ?? Date.now());
   const merged = deepMerge(base, rawState ?? {});
 
+  merged.meta = isObject(merged.meta) ? merged.meta : { ...base.meta };
+  merged.ui = isObject(merged.ui) ? merged.ui : { ...base.ui };
+  merged.economy = isObject(merged.economy) ? merged.economy : { ...base.economy };
+  merged.currencies = isObject(merged.currencies) ? merged.currencies : { ...base.currencies };
+  merged.party = isObject(merged.party) ? merged.party : { ...base.party };
+  merged.inventory = isObject(merged.inventory) ? merged.inventory : { ...base.inventory };
+  merged.crafting = isObject(merged.crafting) ? merged.crafting : { ...base.crafting };
+  merged.roster = isObject(merged.roster) ? merged.roster : { ...base.roster };
+  merged.combat = isObject(merged.combat) ? merged.combat : { ...base.combat };
+  merged.airshipQuests = isObject(merged.airshipQuests) ? merged.airshipQuests : { ...base.airshipQuests };
+  merged.runtime = isObject(merged.runtime) ? merged.runtime : { ...base.runtime };
+
   merged.meta.version = GAME_CONFIG.version;
   merged.meta.rngSeed = Number.isFinite(merged.meta.rngSeed) ? merged.meta.rngSeed : Date.now() % (2 ** 32);
 
@@ -161,6 +173,9 @@ export function normalizeState(rawState) {
     completions: 0,
     totalMaterialConsumed: 0
   };
+
+  merged.roster.ownedInstanceIds = Array.isArray(merged.roster.ownedInstanceIds) ? merged.roster.ownedInstanceIds : [];
+  merged.roster.byInstanceId = isObject(merged.roster.byInstanceId) ? merged.roster.byInstanceId : {};
 
   for (const instanceId of merged.roster.ownedInstanceIds) {
     const instance = merged.roster.byInstanceId[instanceId];

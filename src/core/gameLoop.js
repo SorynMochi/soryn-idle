@@ -48,9 +48,14 @@ export function createGameLoop({
     }
 
     if (dirty && autosaveAccumulator >= config.autosaveIntervalMs) {
-      dirty = false;
-      autosaveAccumulator = 0;
-      await onAutosave?.(state);
+      try {
+        dirty = false;
+        autosaveAccumulator = 0;
+        await onAutosave?.(state);
+      } catch (error) {
+        dirty = true;
+        console.warn('Autosave failed; keeping loop alive and retrying on next autosave window.', error);
+      }
     }
 
     requestAnimationFrame(frame);
