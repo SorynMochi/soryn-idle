@@ -115,6 +115,23 @@ This update continues from the previous PR and addresses the remaining unresolve
   2. Click `Overview`, `Party`, `Recruit`, `Passive`, `Quests`, `Inventory`, and `Crafting`.
   3. Confirm each tab remains selected without being forced back to `Combat` on subsequent loop renders.
 
+## UI interaction state stability
+
+### 9) Dropdowns, selects, and expandable UI cards were continuously reset during gameplay
+- **How reproduced:** With auto-combat running, opened interactive controls (party slot select, quest crew select, combat-area select, equipment select, and defeat-history `<details>` cards). Controls were re-created by loop-driven rendering and immediately collapsed/lost focus.
+- **Root cause:** The game loop called `render` from `onStep` every tick (~100ms), rebuilding panel `innerHTML` while the player was interacting. This recreated form controls and `<details>` nodes before user interaction could complete.
+- **Related issue discovered:** Defeat-history cards did not preserve expanded/collapsed state across normal periodic re-renders.
+- **Exact change made:**
+  - Moved periodic UI rendering from `onStep` to `onRender`, reducing unnecessary redraw pressure.
+  - Added a UI render coordinator that defers non-forced renders while interactive elements are focused/active (`select`, `input`, `textarea`, active buttons/summaries), then flushes pending renders after interaction ends.
+  - Added defeat-history state persistence by stamping each combat history `<details>` node with a stable key and restoring open cards after re-render.
+  - Updated all UI event handlers to force immediate render after intentional player actions so feedback remains responsive.
+- **How to verify now:**
+  1. Start auto-combat and open each select/dropdown in Party, Combat, Quests, and Inventory.
+  2. Confirm each dropdown remains open while focused instead of immediately closing.
+  3. Expand one or more defeat-history cards and wait for several loop renders.
+  4. Confirm expanded cards remain open until manually collapsed.
+
 ## Still remaining
 
 - No additional unresolved bugs from the April 20, 2026 audit remain open after this pass.

@@ -451,7 +451,7 @@ function renderCombat(state, area) {
   const defeatRows = state.combat.defeatHistory
     .map((entry) => {
       const rounds = entry.rounds.map((roundText) => `<li>${roundText}</li>`).join('');
-      return `<details class="defeat-card"><summary>${entry.areaName} · Streak ${entry.streakAtDefeat} · ${entry.monster.name} Lv.${entry.monster.level}</summary><div class="grid-rows">${[
+      return `<details class="defeat-card" data-defeat-key="${entry.ts}-${entry.monster.id}-${entry.streakAtDefeat}"><summary>${entry.areaName} · Streak ${entry.streakAtDefeat} · ${entry.monster.name} Lv.${entry.monster.level}</summary><div class="grid-rows">${[
         row('EXP earned this streak', entry.expEarned),
         row('Gil earned this streak', entry.gilEarned),
         row('EXP / hour', entry.expPerHour),

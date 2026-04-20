@@ -16,6 +16,7 @@ import { render, setStatus } from './ui/render.js';
 
 async function bootstrap() {
   const ui = getUiRefs();
+  const uiRender = createUiRenderCoordinator(ui);
   setStatus(ui, 'Loading save data...');
 
   const loaded = await loadState();
@@ -43,7 +44,9 @@ async function bootstrap() {
 
       state.meta.updatedAt = Date.now();
       state.meta.lastActiveAt = Date.now();
-      render(state, ui);
+    },
+    onRender: () => {
+      uiRender.render(state);
     },
     onAutosave: async (nextState) => {
       nextState.runtime.autosaveCount += 1;
@@ -52,19 +55,19 @@ async function bootstrap() {
     }
   });
 
-  wireUi(ui, store, gameLoop);
-  render(state, ui);
+  wireUi(ui, store, gameLoop, uiRender);
+  uiRender.render(state, { force: true });
   setStatus(ui, offlineResult.summary, true);
   gameLoop.start();
 }
 
-function wireUi(ui, store, gameLoop) {
+function wireUi(ui, store, gameLoop, uiRender) {
   ui.tabButtons.forEach((button) => {
     button.addEventListener('click', () => {
       const selected = button.dataset.tab;
       const state = store.getState();
       state.ui.activeTab = selected;
-      render(state, ui);
+      uiRender.render(state, { force: true });
     });
   });
 
@@ -79,7 +82,7 @@ function wireUi(ui, store, gameLoop) {
     if (changed) {
       gameLoop.markDirty();
       setStatus(ui, 'Combat area changed.');
-      render(state, ui);
+      uiRender.render(state, { force: true });
     }
   });
 
@@ -94,7 +97,7 @@ function wireUi(ui, store, gameLoop) {
     if (changed) {
       gameLoop.markDirty();
       setStatus(ui, state.combat.autoEnabled ? 'Auto-combat started.' : 'Auto-combat paused.', true);
-      render(state, ui);
+      uiRender.render(state, { force: true });
     }
   });
 
@@ -115,12 +118,12 @@ function wireUi(ui, store, gameLoop) {
     if (result.ok) {
       gameLoop.markDirty();
       setStatus(ui, nextItemId ? 'Equipment updated.' : 'Equipment removed.', true);
-      render(state, ui);
+      uiRender.render(state, { force: true });
       return;
     }
 
     setStatus(ui, result.reason ?? 'Unable to change equipment.');
-    render(state, ui);
+    uiRender.render(state, { force: true });
   });
 
 
@@ -134,13 +137,13 @@ function wireUi(ui, store, gameLoop) {
     const result = recruitmentSystem.performPull(state);
     if (!result.ok) {
       setStatus(ui, result.reason ?? 'Recruitment failed.');
-      render(state, ui);
+      uiRender.render(state, { force: true });
       return;
     }
 
     gameLoop.markDirty();
     setStatus(ui, `Recruited ${result.name} (${result.tierId}).`, true);
-    render(state, ui);
+    uiRender.render(state, { force: true });
   });
 
   ui.passivePanel.addEventListener('click', (event) => {
@@ -154,7 +157,7 @@ function wireUi(ui, store, gameLoop) {
         gameLoop.markDirty();
         setStatus(ui, 'Passive route changed.', true);
       }
-      render(state, ui);
+      uiRender.render(state, { force: true });
       return;
     }
 
@@ -168,7 +171,7 @@ function wireUi(ui, store, gameLoop) {
       } else {
         setStatus(ui, 'Unable to unlock route.');
       }
-      render(state, ui);
+      uiRender.render(state, { force: true });
       return;
     }
 
@@ -182,7 +185,7 @@ function wireUi(ui, store, gameLoop) {
       } else {
         setStatus(ui, 'Unable to upgrade route.');
       }
-      render(state, ui);
+      uiRender.render(state, { force: true });
     }
   });
 
@@ -216,7 +219,7 @@ function wireUi(ui, store, gameLoop) {
       setStatus(ui, 'Unable to update party slot.');
     }
 
-    render(state, ui);
+    uiRender.render(state, { force: true });
   });
 
   ui.questsPanel.addEventListener('change', (event) => {
@@ -238,7 +241,7 @@ function wireUi(ui, store, gameLoop) {
 
     state.ui.airshipAssignments[questId][slot] = select.value;
     gameLoop.markDirty();
-    render(state, ui);
+    uiRender.render(state, { force: true });
   });
 
   ui.questsPanel.addEventListener('click', (event) => {
@@ -254,14 +257,14 @@ function wireUi(ui, store, gameLoop) {
 
     if (!result.ok) {
       setStatus(ui, result.reason ?? 'Unable to launch dispatch.');
-      render(state, ui);
+      uiRender.render(state, { force: true });
       return;
     }
 
     state.ui.airshipAssignments[questId] = [];
     gameLoop.markDirty();
     setStatus(ui, `${result.quest.title} launched.`, true);
-    render(state, ui);
+    uiRender.render(state, { force: true });
   });
 
   ui.overviewPanel.addEventListener('click', async (event) => {
@@ -286,8 +289,71 @@ function wireUi(ui, store, gameLoop) {
 
     gameLoop.markDirty();
     setStatus(ui, 'Started a new game.', true);
-    render(state, ui);
+    uiRender.render(state, { force: true });
   });
+}
+
+function createUiRenderCoordinator(ui) {
+  const INTERACTIVE_TAGS = new Set(['SELECT', 'INPUT', 'TEXTAREA']);
+  let pendingState = null;
+
+  const flushIfReady = () => {
+    if (!pendingState || isInteractionActive()) {
+      return;
+    }
+
+    const nextState = pendingState;
+    pendingState = null;
+    applyRender(nextState);
+  };
+
+  const onInteractionEnd = () => {
+    window.setTimeout(flushIfReady, 0);
+  };
+
+  document.addEventListener('focusout', onInteractionEnd);
+  document.addEventListener('pointerup', onInteractionEnd);
+  document.addEventListener('keyup', onInteractionEnd);
+
+  function isInteractionActive() {
+    const activeElement = document.activeElement;
+    if (activeElement && INTERACTIVE_TAGS.has(activeElement.tagName)) {
+      return true;
+    }
+
+    return Boolean(document.querySelector('select:focus, input:focus, textarea:focus, button:active, summary:active'));
+  }
+
+  function applyRender(state) {
+    const openDefeatCards = new Set(
+      Array.from(ui.combatContent.querySelectorAll('details[data-defeat-key][open]')).map((element) => element.dataset.defeatKey)
+    );
+
+    render(state, ui);
+
+    if (openDefeatCards.size === 0) {
+      return;
+    }
+
+    Array.from(ui.combatContent.querySelectorAll('details[data-defeat-key]')).forEach((element) => {
+      if (openDefeatCards.has(element.dataset.defeatKey)) {
+        element.open = true;
+      }
+    });
+  }
+
+  return {
+    render(state, options = {}) {
+      const force = Boolean(options.force);
+      if (!force && isInteractionActive()) {
+        pendingState = state;
+        return;
+      }
+
+      pendingState = null;
+      applyRender(state);
+    }
+  };
 }
 
 function getUiRefs() {
