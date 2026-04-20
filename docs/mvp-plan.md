@@ -2,8 +2,8 @@
 
 ## Core direction for this milestone
 
-This pass focuses on the **application shell + state engine** only.
-Combat/passive simulations are intentionally placeholder hooks so later systems can plug in cleanly.
+This pass now includes a **combat MVP** running in parallel with passive generation.
+The implementation keeps formulas simple and data-driven so balancing can expand safely.
 
 ## Delivered architecture
 
@@ -19,28 +19,43 @@ Combat/passive simulations are intentionally placeholder hooks so later systems 
    ├─ config/
    │  └─ constants.js
    ├─ content/
-   │  ├─ roster.js
-   │  └─ quests.js
+   │  ├─ combatAreas.js
+   │  ├─ characters.js
+   │  └─ passiveActions.js
    ├─ core/
+   │  ├─ gameLoop.js
    │  ├─ gameState.js
    │  └─ store.js
-   ├─ persistence/
-   │  ├─ indexedDb.js
-   │  └─ saveRepository.js
    ├─ systems/
-   │  └─ offlineProgress.js
+   │  ├─ combatSystem.js
+   │  ├─ passiveSystem.js
+   │  └─ progressionSystem.js
    └─ ui/
       └─ render.js
 ```
 
+## Combat MVP scope
+
+- Automatic combat resolves once every **5 seconds** (`combat.tickMs = 5000`).
+- One combat tick is one full battle resolution.
+- Battles run endlessly in the selected area.
+- Monsters are seeded per area and randomized from area pools.
+- Monster level, stats, and EXP/Gil rewards scale by streak progression.
+- Each area has a soft cap where reward growth stops.
+- Streak continues past soft cap for future achievement hooks.
+- Party defeat auto-resets streak and combat resumes immediately.
+- Combat window includes:
+  - area selection,
+  - battle result chat log,
+  - defeat history with detailed round logs,
+  - EXP/Gil earned for the failed streak,
+  - EXP/hour and Gil/hour snapshots.
+
 ## State-first design
 
 - Single serializable game state root in `src/core/gameState.js`.
-- Sections map directly to tabs (`overview`, `party`, `recruit`, `passive`, `combat`, `quests`, `inventory`).
-- Initial state includes:
-  - 100 Gil
-  - Crystal Shards for 3 pulls
-  - 1 starter Common-tier unit
+- Combat history is bounded (recent chat + last 10 defeats) to keep save payload manageable.
+- Seeded RNG (`meta.rngSeed`) drives monster randomization deterministically.
 
 ## Persistence plan
 
@@ -49,15 +64,8 @@ Combat/passive simulations are intentionally placeholder hooks so later systems 
 - Autosave runs every 10 seconds.
 - Save runs on `visibilitychange` and `beforeunload` as best effort.
 
-## Offline support
-
-- Offline time is computed from `lastActiveAt`.
-- Placeholder outcome summary is shown in UI.
-- Reward simulation is deferred to later combat/passive system milestones.
-
 ## Non-goals in this pass
 
-- No full combat loop.
-- No passive action simulation.
-- No production quest resolver.
-- No crafting mechanics (hooks only).
+- No animation-heavy combat presentation.
+- No equipment-based combat formulas yet.
+- No finalized crafting mechanics (hooks only).
