@@ -75,7 +75,8 @@ export const recruitmentSystem = {
         weapon: null,
         armor: null,
         accessory: null
-      }
+      },
+      lockState: null
     };
 
     return instanceId;

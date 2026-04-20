@@ -27,6 +27,10 @@ export const equipmentSystem = {
       return false;
     }
 
+    if (instance.lockState?.locked) {
+      return false;
+    }
+
     const resolvedSlotId = slotId ?? item.slot;
     if (item.slot !== resolvedSlotId) {
       return false;
@@ -71,6 +75,10 @@ export const equipmentSystem = {
     const instance = state.roster.byInstanceId?.[instanceId];
     if (!instance) {
       return { ok: false, reason: 'Unknown character instance.' };
+    }
+
+    if (instance.lockState?.locked) {
+      return { ok: false, reason: 'Character is currently on airship dispatch.' };
     }
 
     const currentId = instance.equipmentSlots?.[slotId];

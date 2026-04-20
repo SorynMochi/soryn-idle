@@ -481,3 +481,53 @@ The runtime now includes a system-heavy, content-light recruitment + party slice
 - Party state supports `maxSlots: 4`, empty slots, and bench management via owned roster instances.
 - Character entries now include `passiveSpecialty` and `equipmentHook` fields as forward-compatible data hooks.
 - Equipment restrictions are not enforced yet; hooks exist only in data model.
+
+
+## 8) Airship quest board (implemented)
+
+### Quest content definitions (`src/content/quests.js`)
+
+```js
+{
+  id: "aq-slate-ridge-survey",
+  title: "Slate Ridge Survey",
+  durationMs: 360000,
+  maxAssignees: 2,
+  unlock: { id: "hero_level", params: { heroLevel: 4 } },
+  statRequirements: { atk: 24, spd: 20 },
+  rewards: {
+    success: [{ type: "gil", min: 80, max: 130 }, { type: "shards", min: 12, max: 20 }],
+    failure: [{ type: "gil", min: 24, max: 40 }]
+  }
+}
+```
+
+### Quest runtime save shape (`save.airshipQuests`)
+
+```js
+{
+  unlocked: false,
+  unlockedQuestIds: [],
+  nextRunId: 1,
+  activeRunsById: {
+    aqr_00001: {
+      runId: "aqr_00001",
+      questId: "aq-slate-ridge-survey",
+      startedAt: 0,
+      endsAt: 0,
+      assignedInstanceIds: ["inst_0001"],
+      successChance: 0.64
+    }
+  },
+  activeRunsByQuestId: {
+    "aq-slate-ridge-survey": "aqr_00001"
+  },
+  history: []
+}
+```
+
+Rules:
+- Airship board unlock and per-quest unlocks are evaluated through unlock hooks.
+- Assigned characters are lock-flagged until the dispatch resolves.
+- Completion writes a history entry and applies rewards (Crystal Shards and Gil supported by default).
+
