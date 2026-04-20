@@ -1,41 +1,70 @@
-function renderRows(entries) {
-  return entries
-    .map(([label, value]) => `<div class="stat-row"><span>${label}</span><strong>${value}</strong></div>`)
+function row(label, value) {
+  return `<div class="row"><span class="row-label">${label}</span><strong>${value}</strong></div>`;
+}
+
+function renderRoster(roster) {
+  return roster
+    .map(
+      (unit) =>
+        `<div class="row"><span>${unit.name}</span><strong>${unit.tier} • ${unit.role} • ${unit.element}</strong></div>`
+    )
     .join('');
 }
 
 export function render(state, ui) {
-  ui.heroStats.innerHTML = renderRows([
-    ['Level', state.hero.level],
-    ['HP', `${Math.floor(state.hero.hp)} / ${state.hero.maxHp}`],
-    ['Attack', state.hero.attack],
-    ['XP', `${Math.floor(state.hero.xp)} / ${state.hero.xpToNext}`]
-  ]);
+  ui.currencyStrip.innerHTML = [
+    `<span class="currency-pill">Gil: ${Math.floor(state.currencies.gil)}</span>`,
+    `<span class="currency-pill">Crystal Shards: ${Math.floor(state.currencies.crystalShards)}</span>`
+  ].join('');
 
-  ui.worldStats.innerHTML = renderRows([
-    ['Zone', state.world.zone],
-    ['Kills', state.world.kills],
-    ['Enemy', state.world.enemy.name],
-    ['Enemy HP', `${Math.max(0, Math.floor(state.world.enemy.hp))} / ${state.world.enemy.maxHp}`]
-  ]);
+  ui.overviewContent.innerHTML = `<div class="grid-rows">${[
+    row('Save Version', state.meta.version),
+    row('Autosaves', state.runtime.autosaveCount),
+    row('Last Offline Window', `${Math.floor(state.runtime.lastOfflineDurationMs / 1000)}s`),
+    row('Current Zone', state.combat.zone),
+    row('Party Size', state.party.roster.length)
+  ].join('')}</div>`;
 
-  ui.economyStats.innerHTML = renderRows([
-    ['Gold', Math.floor(state.economy.gold)],
-    ['Shards', state.economy.shards],
-    ['Ticks', state.runtime.totalTicks]
-  ]);
+  ui.partyContent.innerHTML = `<div class="grid-rows">${renderRoster(state.party.roster)}</div>`;
 
-  ui.upgradeStats.innerHTML = renderRows([
-    ['Attack Rank', state.upgrades.attackRank],
-    ['Vitality Rank', state.upgrades.vitalityRank],
-    ['Automation Rank', state.upgrades.automationRank]
-  ]);
+  ui.recruitContent.innerHTML = `<div class="grid-rows">${[
+    row('Shard Cost / Pull', state.recruit.shardCostPerPull),
+    row('Seeded Pool Size', state.recruit.pool.length)
+  ].join('')}</div><p class="note">Recruit flow is intentionally scaffold-only in this milestone.</p>`;
+
+  ui.passiveContent.innerHTML = `<div class="grid-rows">${[
+    row('Status', state.passive.status),
+    row('Hook', state.passive.notes)
+  ].join('')}</div>`;
+
+  ui.combatContent.innerHTML = `<div class="grid-rows">${[
+    row('Zone', state.combat.zone),
+    row('Status', state.combat.status),
+    row('Hook', state.combat.notes)
+  ].join('')}</div>`;
+
+  ui.questsContent.innerHTML = `<div class="grid-rows">${state.quests.entries
+    .map((quest) => row(quest.title, `${quest.status} • ${quest.objective}`))
+    .join('')}</div>`;
+
+  ui.inventoryContent.innerHTML = `<div class="grid-rows">${state.inventory.materials
+    .map((item) => row(item.name, `x${item.qty}`))
+    .join('')}</div><p class="note">Crafting hooks reserved; no production rules shipped yet.</p>`;
+
+  setActiveTab(state.ui.activeTab, ui);
 }
 
-export function setStatus(ui, text) {
-  ui.status.textContent = text;
+export function setActiveTab(tabId, ui) {
+  ui.tabButtons.forEach((button) => {
+    button.classList.toggle('is-active', button.dataset.tab === tabId);
+  });
+
+  ui.panels.forEach((panel) => {
+    panel.classList.toggle('is-hidden', panel.dataset.panel !== tabId);
+  });
 }
 
-export function setOfflineSummary(ui, text) {
-  ui.offlineSummary.textContent = text;
+export function setStatus(ui, message, isGood = false) {
+  ui.statusLine.classList.toggle('good', isGood);
+  ui.statusLine.textContent = message;
 }

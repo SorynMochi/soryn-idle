@@ -3,45 +3,67 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Idle RPG Foundation</title>
+    <title>Soryn Idle</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <main class="app">
-      <header>
-        <h1>Idle RPG Foundation</h1>
-        <p class="subtitle">Auto-progression demo (no clicker core loop)</p>
+    <main class="app-shell">
+      <header class="app-header panel">
+        <div>
+          <h1>Soryn Idle</h1>
+          <p class="subtitle">A quiet march across crystal-lit frontiers.</p>
+        </div>
+        <div class="currency-strip" id="currency-strip"></div>
       </header>
 
-      <section class="grid">
-        <article class="card">
-          <h2>Hero</h2>
-          <div id="hero-stats"></div>
-        </article>
+      <nav class="tab-nav panel" aria-label="Main sections" id="tab-nav">
+        <button class="tab-button is-active" data-tab="overview">Overview</button>
+        <button class="tab-button" data-tab="party">Party</button>
+        <button class="tab-button" data-tab="recruit">Recruit</button>
+        <button class="tab-button" data-tab="passive">Passive</button>
+        <button class="tab-button" data-tab="combat">Combat</button>
+        <button class="tab-button" data-tab="quests">Quests</button>
+        <button class="tab-button" data-tab="inventory">Inventory</button>
+      </nav>
 
-        <article class="card">
-          <h2>World</h2>
-          <div id="world-stats"></div>
-        </article>
-
-        <article class="card">
-          <h2>Economy</h2>
-          <div id="economy-stats"></div>
-        </article>
-
-        <article class="card">
-          <h2>Upgrades</h2>
-          <div id="upgrade-stats"></div>
-          <button id="buy-attack">Buy Attack Upgrade (50g)</button>
-          <button id="buy-vitality">Buy Vitality Upgrade (50g)</button>
-        </article>
+      <section class="panel section" data-panel="overview">
+        <h2>Overview</h2>
+        <div id="overview-content"></div>
       </section>
 
-      <section class="card log-card">
-        <h2>Status</h2>
-        <p id="status">Booting...</p>
-        <p id="offline-summary"></p>
+      <section class="panel section is-hidden" data-panel="party">
+        <h2>Party</h2>
+        <div id="party-content"></div>
       </section>
+
+      <section class="panel section is-hidden" data-panel="recruit">
+        <h2>Recruit</h2>
+        <div id="recruit-content"></div>
+      </section>
+
+      <section class="panel section is-hidden" data-panel="passive">
+        <h2>Passive</h2>
+        <div id="passive-content"></div>
+      </section>
+
+      <section class="panel section is-hidden" data-panel="combat">
+        <h2>Combat</h2>
+        <div id="combat-content"></div>
+      </section>
+
+      <section class="panel section is-hidden" data-panel="quests">
+        <h2>Quests</h2>
+        <div id="quests-content"></div>
+      </section>
+
+      <section class="panel section is-hidden" data-panel="inventory">
+        <h2>Inventory</h2>
+        <div id="inventory-content"></div>
+      </section>
+
+      <footer class="panel footer">
+        <p id="status-line">Booting shell...</p>
+      </footer>
     </main>
 
     <script type="module" src="src/main.js"></script>
