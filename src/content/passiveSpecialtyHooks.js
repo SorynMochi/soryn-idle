@@ -2,47 +2,47 @@ export const PASSIVE_SPECIALTY_HOOKS = {
   stonewall: {
     categoryId: 'mining',
     yieldMultiplier: 1.08,
-    hooks: { crafting: 1.02, questRewards: 1.04, combatExp: 1, itemDropChance: 1.01 }
+    hooks: { crafting: 1.02, craftingQuality: 1.01, craftingEfficiency: 1.02, craftingYield: 1.01, questRewards: 1.04, combatExp: 1, itemDropChance: 1.01 }
   },
   mending_hymn: {
     categoryId: 'gathering',
     yieldMultiplier: 1.12,
-    hooks: { crafting: 1.04, questRewards: 1.03, combatExp: 1.01, itemDropChance: 1.02 }
+    hooks: { crafting: 1.04, craftingQuality: 1.02, craftingEfficiency: 1.01, craftingYield: 1.02, questRewards: 1.03, combatExp: 1.01, itemDropChance: 1.02 }
   },
   chase_step: {
     categoryId: 'training',
     yieldMultiplier: 1.1,
-    hooks: { crafting: 1, questRewards: 1.02, combatExp: 1.05, itemDropChance: 1.03 }
+    hooks: { crafting: 1, craftingQuality: 1.01, craftingEfficiency: 1.02, craftingYield: 1, questRewards: 1.02, combatExp: 1.05, itemDropChance: 1.03 }
   },
   aether_flow: {
     categoryId: 'studying',
     yieldMultiplier: 1.12,
-    hooks: { crafting: 1.05, questRewards: 1.02, combatExp: 1.03, itemDropChance: 1.01 }
+    hooks: { crafting: 1.05, craftingQuality: 1.03, craftingEfficiency: 1.01, craftingYield: 1.02, questRewards: 1.02, combatExp: 1.03, itemDropChance: 1.01 }
   },
   lionheart_oath: {
     categoryId: 'training',
     yieldMultiplier: 1.14,
-    hooks: { crafting: 1.01, questRewards: 1.05, combatExp: 1.04, itemDropChance: 1.01 }
+    hooks: { crafting: 1.01, craftingQuality: 1.02, craftingEfficiency: 1.01, craftingYield: 1.01, questRewards: 1.05, combatExp: 1.04, itemDropChance: 1.01 }
   },
   starlit_arc: {
     categoryId: 'studying',
     yieldMultiplier: 1.15,
-    hooks: { crafting: 1.06, questRewards: 1.04, combatExp: 1.03, itemDropChance: 1.02 }
+    hooks: { crafting: 1.06, craftingQuality: 1.04, craftingEfficiency: 1.02, craftingYield: 1.03, questRewards: 1.04, combatExp: 1.03, itemDropChance: 1.02 }
   },
   war_cry: {
     categoryId: 'chopping',
     yieldMultiplier: 1.12,
-    hooks: { crafting: 1.02, questRewards: 1.04, combatExp: 1.06, itemDropChance: 1.01 }
+    hooks: { crafting: 1.02, craftingQuality: 1.01, craftingEfficiency: 1.03, craftingYield: 1.01, questRewards: 1.04, combatExp: 1.06, itemDropChance: 1.01 }
   },
   astral_veil: {
     categoryId: 'gathering',
     yieldMultiplier: 1.1,
-    hooks: { crafting: 1.03, questRewards: 1.03, combatExp: 1.02, itemDropChance: 1.03 }
+    hooks: { crafting: 1.03, craftingQuality: 1.02, craftingEfficiency: 1.02, craftingYield: 1.01, questRewards: 1.03, combatExp: 1.02, itemDropChance: 1.03 }
   },
   sunfall_edict: {
     categoryId: 'mining',
     yieldMultiplier: 1.2,
-    hooks: { crafting: 1.06, questRewards: 1.06, combatExp: 1.06, itemDropChance: 1.04 }
+    hooks: { crafting: 1.06, craftingQuality: 1.04, craftingEfficiency: 1.03, craftingYield: 1.04, questRewards: 1.06, combatExp: 1.06, itemDropChance: 1.04 }
   }
 };
 
@@ -51,7 +51,15 @@ export function getSpecialtyHookById(specialtyId) {
     return {
       categoryId: null,
       yieldMultiplier: 1,
-      hooks: { crafting: 1, questRewards: 1, combatExp: 1, itemDropChance: 1 }
+      hooks: {
+        crafting: 1,
+        craftingQuality: 1,
+        craftingEfficiency: 1,
+        craftingYield: 1,
+        questRewards: 1,
+        combatExp: 1,
+        itemDropChance: 1
+      }
     };
   }
 

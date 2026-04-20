@@ -1,6 +1,7 @@
 import { PASSIVE_ACTION_CATEGORIES, PASSIVE_CATEGORY_ORDER } from '../content/passiveActions.js';
 import { PASSIVE_SPECIALTY_HOOKS } from '../content/passiveSpecialtyHooks.js';
 import { partySystem } from './partySystem.js';
+import { craftingSystem } from './craftingSystem.js';
 
 export const passiveSystem = {
   id: 'passive',
@@ -24,6 +25,7 @@ export const passiveSystem = {
     state.passive.resources[category.resourceKey] += generatedAmount;
     categoryState.totalGenerated += generatedAmount;
     categoryState.elapsedMs += deltaMs;
+    craftingSystem.addMaterial(state, category.resourceKey, generatedAmount);
 
     if (output.heroXpPerSecond > 0) {
       state.hero.xp += output.heroXpPerSecond * deltaSec;
