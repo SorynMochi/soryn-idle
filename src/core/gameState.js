@@ -1,11 +1,11 @@
 import { INITIAL_SHARDS } from '../content/recruitmentBalance.js';
 import { PASSIVE_CATEGORY_ORDER, PASSIVE_RESOURCE_KEYS } from '../content/passiveActions.js';
 import { GAME_CONFIG } from '../config/constants.js';
+import { CHARACTER_ROSTER, RECRUIT_CONFIG } from '../content/roster.js';
+import { SAMPLE_QUESTS } from '../content/quests.js';
 import { partySystem } from '../systems/partySystem.js';
 
 export function createInitialState(now = Date.now()) {
-  const enemy = buildEnemyForZone(1);
-
   return {
     meta: {
       version: GAME_CONFIG.version,
@@ -14,14 +14,20 @@ export function createInitialState(now = Date.now()) {
       lastActiveAt: now,
       rngSeed: now % (2 ** 32)
     },
-    hero: {
-      level: 1,
-      xp: 0,
-      xpToNext: 20,
-      attack: 5,
-      maxHp: 40,
-      hp: 40
+    ui: {
+      activeTab: 'overview'
     },
+    currencies: {
+      gil: 100,
+      crystalShards: RECRUIT_CONFIG.shardCostPerPull * 3
+    },
+    party: {
+      activeIds: ['c-lyra-dawnwell'],
+      roster: [CHARACTER_ROSTER[0]]
+    },
+    recruit: {
+      shardCostPerPull: RECRUIT_CONFIG.shardCostPerPull,
+      pool: CHARACTER_ROSTER
     economy: {
       gold: 0,
       shards: INITIAL_SHARDS
@@ -39,15 +45,24 @@ export function createInitialState(now = Date.now()) {
     gacha: {
       lastPullResult: null
     },
-    world: {
-      zone: 1,
-      kills: 0,
-      enemy
+    passive: {
+      status: 'Not Started',
+      notes: 'Passive route simulation will be connected in a later milestone.'
     },
-    upgrades: {
-      attackRank: 0,
-      vitalityRank: 0,
-      automationRank: 0
+    combat: {
+      zone: 1,
+      status: 'Standby',
+      notes: 'Combat simulation scaffolding only in this pass.'
+    },
+    quests: {
+      entries: SAMPLE_QUESTS
+    },
+    inventory: {
+      materials: [
+        { id: 'm-crystal-dust', name: 'Crystal Dust', qty: 5 },
+        { id: 'm-ironleaf', name: 'Ironleaf', qty: 3 }
+      ],
+      equipment: []
     },
 
     passive: {
@@ -67,7 +82,8 @@ export function createInitialState(now = Date.now()) {
     },
     runtime: {
       totalPlayTimeMs: 0,
-      totalTicks: 0
+      autosaveCount: 0,
+      lastOfflineDurationMs: 0
     }
   };
 }
@@ -77,8 +93,16 @@ export function normalizeState(rawState) {
   const merged = deepMerge(base, rawState ?? {});
 
   merged.meta.version = GAME_CONFIG.version;
-  merged.hero.hp = clamp(merged.hero.hp, 0, merged.hero.maxHp);
 
+  if (!Array.isArray(merged.party.roster) || merged.party.roster.length === 0) {
+    merged.party.roster = [CHARACTER_ROSTER[0]];
+    merged.party.activeIds = [CHARACTER_ROSTER[0].id];
+  }
+
+  if (typeof merged.currencies.gil !== 'number') merged.currencies.gil = 100;
+  if (typeof merged.currencies.crystalShards !== 'number') {
+    merged.currencies.crystalShards = RECRUIT_CONFIG.shardCostPerPull * 3;
+  }
   if (!Number.isFinite(merged.meta.rngSeed)) {
     merged.meta.rngSeed = Date.now() % (2 ** 32);
   }
@@ -135,14 +159,11 @@ export function buildEnemyForZone(zone) {
   };
 }
 
-export function xpToNextLevel(level) {
-  return Math.floor(20 + level * level * 5);
+  return merged;
 }
 
 function deepMerge(target, source) {
-  if (typeof source !== 'object' || source === null) {
-    return target;
-  }
+  if (typeof source !== 'object' || source === null) return target;
 
   const output = { ...target };
   for (const key of Object.keys(source)) {
@@ -169,6 +190,19 @@ function isObject(value) {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function clamp(value, min, max) {
-  return Math.max(min, Math.min(max, value));
+
+// Compatibility hooks for pre-shell simulation modules; values are placeholders.
+export function buildEnemyForZone(zone = 1) {
+  return {
+    name: `Wisp ${zone}`,
+    hp: 10 + zone * 2,
+    maxHp: 10 + zone * 2,
+    attack: 1 + zone,
+    rewardGold: 2 + zone,
+    rewardXp: 3 + zone
+  };
+}
+
+export function xpToNextLevel(level = 1) {
+  return 20 + level * 5;
 }
