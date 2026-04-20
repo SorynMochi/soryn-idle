@@ -1,6 +1,8 @@
 import { CHARACTERS_BY_ID } from '../content/characters.js';
+import { getSpecialtyHookById } from '../content/passiveSpecialtyHooks.js';
+import { equipmentSystem } from './equipmentSystem.js';
 
-const MAIN_STATS = ['atk', 'def', 'mag', 'res', 'spd'];
+const MAIN_STATS = equipmentSystem.getStatKeys();
 
 export const partySystem = {
   id: 'party',
@@ -55,11 +57,8 @@ export const partySystem = {
     const totals = { hp: 0, mp: 0, atk: 0, def: 0, mag: 0, res: 0, spd: 0 };
 
     for (const member of this.getActiveMembers(state)) {
-      totals.hp += member.baseStats.hp;
-      totals.mp += member.baseStats.mp;
-
       for (const stat of MAIN_STATS) {
-        totals[stat] += member.baseStats[stat];
+        totals[stat] += member.finalStats[stat];
       }
     }
 
@@ -98,13 +97,19 @@ function getRosterView(state, instanceId) {
     return null;
   }
 
+  const equipmentBonuses = equipmentSystem.getEquipmentBonus(state, instanceId);
+
   return {
     instanceId,
     characterId: instance.characterId,
     name: character.name,
     tierId: character.tierId,
     baseStats: character.baseStats,
+    equipmentSlots: instance.equipmentSlots,
+    equipmentBonuses,
+    finalStats: equipmentSystem.getFinalStats(character.baseStats, equipmentBonuses),
     passiveSpecialty: character.passiveSpecialty,
+    passiveSpecialtyHooks: getSpecialtyHookById(character.passiveSpecialty?.id),
     equipmentHook: character.equipmentHook
   };
 }
